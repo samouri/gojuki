@@ -26,8 +26,8 @@ app.get("/", (req, res) => {
 app.get("/signal", (req, res) => {
   const id = req.sessionID;
   // if they refresh the browser
-  if ( peers[id] ) {
-    console.log(`peer ${id } already had a cxn, so lets scrap it`);
+  if (peers[id]) {
+    console.log(`peer ${id} already had a cxn, so lets scrap it`);
     peers[id].destroy();
     delete peers[id];
   }
@@ -43,12 +43,12 @@ app.get("/signal", (req, res) => {
   });
   peer.sessionID = id;
   peers[id] = peer;
-  
-  peer.on("connect", function() {
+
+  peer.on("connect", function () {
     console.log("CONNECTED!!!");
     peer.send("babe we did it");
   });
-  
+
   peer.on("signal", data => {
     console.log(`initial signaling for client: ${peer.sessionID}`);
     res.send(JSON.stringify({ id: peer.id, signal: data }));
@@ -56,18 +56,17 @@ app.get("/signal", (req, res) => {
   peer.on('data', data => {
     console.log(`message: ${data}`);
   })
-  peer.on("error", (err) => { 
+  peer.on("error", (err) => {
     console.error(err);
     delete peers[id]
-  }); 
-  peer.on("close", () => delete peers[id]); 
+  });
+  peer.on("close", () => delete peers[id]);
   peer.on("destroy", () => delete peers[id]);
 });
 
 app.post("/signal", (req, res) => {
   const { signal } = req.body;
   console.log(`signal recieved back from client: ${req.sessionID}`);
-  console.log(Object.keys(peers));
   peers[req.sessionID].signal(signal);
 });
 

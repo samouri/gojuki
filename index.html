@@ -1,8 +1,10 @@
 <html>
 
 <head>
+  <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.2.1/simplepeer.min.js"></script>
   <script src="./src/index.js"> </script>
+  <title>Gojuki</title>
 </head>
 <style>
   body {
@@ -13,14 +15,14 @@
   }
 
   canvas {
-    height: 480px;
-    width: 420px;
-    border: solid 1px black;
+    border: 1px solid #e91e63;
   }
 </style>
 
 <body>
-  <canvas id="canvas"></canvas>
+  <div id="app">
+    <canvas id="game"></canvas>
+  </div>
 </body>
 <script>
   async function init() {

@@ -2,6 +2,7 @@
   "name": "gojuki",
   "version": "0.1.0",
   "scripts": {
+    "server": "node server/index.js",
     "start": "parcel index.html"
   },
   "keywords": [],
