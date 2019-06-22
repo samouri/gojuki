@@ -6,14 +6,16 @@
   align-items: center;
 }
 
-.app__info {
-  font-size: 18px;
+.yellowBtn,
+.infoButton {
+  font-size: 14px;
   color: #f8e81c;
   text-decoration: none;
   padding: 20px;
   font-family: 'Press Start 2P', cursive;
 }
-.app__info:hover {
+.yellowBtn:hover,
+.infoButton:hover {
   color: #9a9114;
   cursor: pointer;
 }

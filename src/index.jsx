@@ -3,49 +3,79 @@ import ReactDOM from 'react-dom'
 import swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
 import './style.css'
+import { Router, Link } from '@reach/router'
 
 const Swal = withReactContent(swal)
 
-const normalFontSize = '14px'
-const largeFontSize = '36px'
-const jumboFontSize = '80px'
 const fontFamily = "'Press Start 2P', cursive"
 
 class App extends React.Component {
+  state = {}
   render() {
     return (
       <div className="app">
-        <h1 style={{ fontSize: jumboFontSize, fontFamily, color: '#e91e63', paddingTop: 90 }}>
-          Gojuki
+        <Router style={{ width: '100%', height: '100%' }}>
+          <StartScreen path="/" />
+          <PartyScreen path="/party" />
+        </Router>
+      </div>
+    )
+  }
+}
+class PartyScreen extends React.Component {
+  render() {
+    return (
+      <div
+        className="partyScreen"
+        style={{ width: '100%', flexDirection: 'column', alignItems: 'center' }}
+      >
+        <div style={{ flexDirection: 'row', alignSelf: 'start', padding: 20 }}>
+          <Link to="/" className="yellowBtn">
+            <span>Home</span>
+          </Link>
+          <InfoButton content={HowToPlay}>How to play</InfoButton>
+        </div>
+        <h1 style={{ fontSize: 32, fontFamily, color: '#e91e63' }}>Party Lobby</h1>
+        <h1 style={{ fontSize: 18, fontFamily, color: 'white', paddingTop: 20 }}>
+          Waiting for N more player(s)...
         </h1>
-        <button className="app__playbtn">Play</button>
+      </div>
+    )
+  }
+}
+
+class StartScreen extends React.Component {
+  render() {
+    return (
+      <div className="app">
+        <h1 style={{ fontSize: 80, fontFamily, color: '#e91e63', paddingTop: 90 }}>Gojuki</h1>
+        <Link to="party">
+          <button className="app__playbtn">Play</button>
+        </Link>
         <div style={{ flexDirection: 'row', paddingTop: '30px' }}>
-          <a
-            className="app__info"
-            onClick={() =>
-              Swal.fire({
-                html: <HowToPlay />,
-                customClass: { confirmButton: 'sweetalert_confirm' },
-                showCloseButton: true
-              })
-            }
-          >
-            How to play
-          </a>
-          <a
-            className="app__info"
-            onClick={() =>
-              Swal.fire({
-                html: <About />,
-                customClass: { confirmButton: 'sweetalert_confirm' },
-                showCloseButton: true
-              })
-            }
-          >
-            About
-          </a>
+          <InfoButton content={HowToPlay}>How to play</InfoButton>
+          <InfoButton content={About}>About</InfoButton>
         </div>
       </div>
+    )
+  }
+}
+
+class InfoButton extends React.Component {
+  render() {
+    return (
+      <a
+        className="infoButton"
+        onClick={() =>
+          Swal.fire({
+            html: <this.props.content />,
+            customClass: { confirmButton: 'sweetalert_confirm' },
+            showCloseButton: true
+          })
+        }
+      >
+        {this.props.children}
+      </a>
     )
   }
 }
@@ -67,8 +97,6 @@ class About extends React.Component {
 
 class HowToPlay extends React.Component {
   render() {
-    const instructionStyle = {}
-
     return (
       <div className="howToPlay">
         <h1 className="howToPlay__header">How to Play</h1>
