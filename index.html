@@ -1,66 +1,74 @@
 <html>
+  <head>
+    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.2.1/simplepeer.min.js"></script>
+    <script src="./src/index.jsx"></script>
+    <style src="./src/style.css"></style>
+    <title>Gojuki</title>
+  </head>
+  <style>
+    body div {
+      display: flex;
+    }
 
-<head>
-  <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.2.1/simplepeer.min.js"></script>
-  <script src="./src/index.js"> </script>
-  <title>Gojuki</title>
-</head>
-<style>
-  body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    touch-action: none;
-  }
+    body {
+      flex-direction: column;
+      align-items: center;
+      touch-action: none;
+      height: 100%;
+      margin: 0;
+    }
 
-  canvas {
-    border: 1px solid #e91e63;
-  }
-</style>
+    #app {
+      width: 100%;
+      height: 100%;
+    }
 
-<body>
-  <div id="app">
-    <canvas id="game"></canvas>
-  </div>
-</body>
-<script>
-  async function init() {
-    const { signal, id } = await (await fetch("/signal")).json();
-    console.log("successfully fetched signal from server");
-    var p = new SimplePeer({
-      trickle: false,
-      channelConfig: {
-        ordered: false,
-        maxRetransmits: 0
-      }
-    });
-    window.peer = p;
-    p.on("signal", function (data) {
-      console.log("sending our signal to the server");
-      fetch("/signal", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ id, signal: data }),
-        credentials: "include"
-      });
-    });
+    canvas {
+      border: 1px solid #e91e63;
+    }
+  </style>
 
-    p.on("connect", function () {
-      console.log("CONNECTED");
-    });
+  <body>
+    <div id="app"></div>
+    <!-- <canvas id="game"></canvas> -->
+  </body>
+  <script>
+    // async function init() {
+    //   const { signal, id } = await (await fetch("/signal")).json();
+    //   console.log("successfully fetched signal from server");
+    //   var p = new SimplePeer({
+    //     trickle: false,
+    //     channelConfig: {
+    //       ordered: false,
+    //       maxRetransmits: 0
+    //     }
+    //   });
+    //   window.peer = p;
+    //   p.on("signal", function (data) {
+    //     console.log("sending our signal to the server");
+    //     fetch("/signal", {
+    //       method: "POST",
+    //       headers: {
+    //         Accept: "application/json",
+    //         "Content-Type": "application/json"
+    //       },
+    //       body: JSON.stringify({ id, signal: data }),
+    //       credentials: "include"
+    //     });
+    //   });
 
-    p.on("data", function (data) {
-      console.log("msg: " + data);
-    });
+    //   p.on("connect", function () {
+    //     console.log("CONNECTED");
+    //   });
 
-    // get this show on the road
-    p.signal(signal);
-  }
-  init();
-</script>
+    //   p.on("data", function (data) {
+    //     console.log("msg: " + data);
+    //   });
 
+    //   // get this show on the road
+    //   p.signal(signal);
+    // }
+    // init();
+  </script>
 </html>
