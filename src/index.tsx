@@ -19,6 +19,9 @@ const Swal = withReactContent(swal)
 
 const fontFamily = "'Press Start 2P', cursive"
 
+/**
+ * TODO: Reconnect logic should zoom the player back to where they were instead of necessarilly being on the start screen.
+ */
 class App extends React.Component {
   state: { serverState: Party } = { serverState: { players: [], status: 'NOT_STARTED' } }
   componentDidMount() {
