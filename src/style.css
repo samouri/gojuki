@@ -83,3 +83,11 @@ button.sweetalert_confirm.swal2-confirm {
   min-width: 110px;
   font-size: 16px;
 }
+
+#player-list {
+  margin-top: 30px;
+  list-style-type: none;
+  padding: 0;
+  font-size: 18;
+  font-family: 'Press Start 2P', cursive;
+}

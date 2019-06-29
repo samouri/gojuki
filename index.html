@@ -2,8 +2,7 @@
   <head>
     <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.2.1/simplepeer.min.js"></script>
-    <script src="./src/index.jsx"></script>
-    <style src="./src/style.css"></style>
+    <script src="./src/index.tsx"></script>
     <title>Gojuki</title>
   </head>
   <style>
@@ -33,42 +32,5 @@
     <div id="app"></div>
     <!-- <canvas id="game"></canvas> -->
   </body>
-  <script>
-    // async function init() {
-    //   const { signal, id } = await (await fetch("/signal")).json();
-    //   console.log("successfully fetched signal from server");
-    //   var p = new SimplePeer({
-    //     trickle: false,
-    //     channelConfig: {
-    //       ordered: false,
-    //       maxRetransmits: 0
-    //     }
-    //   });
-    //   window.peer = p;
-    //   p.on("signal", function (data) {
-    //     console.log("sending our signal to the server");
-    //     fetch("/signal", {
-    //       method: "POST",
-    //       headers: {
-    //         Accept: "application/json",
-    //         "Content-Type": "application/json"
-    //       },
-    //       body: JSON.stringify({ id, signal: data }),
-    //       credentials: "include"
-    //     });
-    //   });
-
-    //   p.on("connect", function () {
-    //     console.log("CONNECTED");
-    //   });
-
-    //   p.on("data", function (data) {
-    //     console.log("msg: " + data);
-    //   });
-
-    //   // get this show on the road
-    //   p.signal(signal);
-    // }
-    // init();
-  </script>
+  <script></script>
 </html>
