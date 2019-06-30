@@ -3,7 +3,7 @@ import * as Peer from 'simple-peer'
 import * as session from 'express-session'
 import * as bodyParser from 'body-parser'
 import * as path from 'path'
-import * as gameState from './state'
+import { saveClientState, getParties, handleMessage, log } from './state'
 const wrtc: any = require('wrtc')
 
 const app = express()
@@ -51,16 +51,13 @@ app.get('/signal', (req, res) => {
     peer.send(JSON.stringify(log('babe we did it')))
   })
 
-  function log(message: string): gameState.LOG_MESSAGE {
-    return { type: 'LOG', message }
-  }
   peer.on('signal', data => {
     console.log(`initial signaling for client: ${id}`)
     res.send(JSON.stringify({ id, signal: data }))
   })
   peer.on('data', data => {
     console.log(`receivingMessage: ${data}`)
-    gameState.handleMessage(id, JSON.parse(data))
+    handleMessage(JSON.parse(data))
   })
   peer.on('error', err => {
     console.error(err)
@@ -80,7 +77,7 @@ app.listen(3000)
 
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
-  const parties = gameState.getParties()
+  const parties = getParties()
   for (const [partyId, party] of Object.entries(parties)) {
     for (const { peerId } of party.players) {
       const peer = peers[peerId]
@@ -88,12 +85,7 @@ function sendGameUpdates() {
         // filter out peers that disconnected
         continue
       }
-      peers[peerId].send(
-        JSON.stringify({
-          type: 'CLIENT_SAVE_STATE',
-          state: party
-        } as gameState.Message)
-      )
+      peers[peerId].send(JSON.stringify(saveClientState(party)))
     }
   }
 }

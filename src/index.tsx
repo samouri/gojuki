@@ -3,13 +3,14 @@ import * as ReactDOM from 'react-dom'
 import swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
 import './style.css'
-import { Router, Link, RouteComponentProps } from '@reach/router'
-import { Message, Party, Player } from '../server/state'
+import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
+import { Message, Party, Player, joinParty } from '../server/state'
 import { Instance } from 'simple-peer'
 
 declare global {
   interface Window {
     peer: Instance
+    peerId: string
     SimplePeer: any
     appSetState: Function
   }
@@ -19,14 +20,20 @@ const Swal = withReactContent(swal)
 
 const fontFamily = "'Press Start 2P', cursive"
 
-/**
- * TODO: Reconnect logic should zoom the player back to where they were instead of necessarilly being on the start screen.
- */
 class App extends React.Component {
   state: { serverState: Party } = { serverState: { players: [], status: 'NOT_STARTED' } }
   componentDidMount() {
     window.appSetState = (s: any) => this.setState(s)
   }
+  componentDidUpdate(_prevProps: any, prevState: { serverState: Party }) {
+    const { players, status } = this.state.serverState
+    if (players !== prevState.serverState.players) {
+      if (players.length > 0 && status === 'NOT_STARTED') {
+        navigate('/party')
+      }
+    }
+  }
+
   render() {
     return (
       <div className="app">
@@ -34,11 +41,9 @@ class App extends React.Component {
           <StartScreen path="/" />
           <PartyScreen
             path="/party"
-            setPlayerName={playerName => {
-              // this.setState({ playerName, players: [playerName, ...this.state.players] })
-              window.peer.send(JSON.stringify({ type: 'JOIN_PARTY', playerName }))
+            setPlayerName={(playerName: string) => {
+              window.peer.send(JSON.stringify(joinParty(window.peerId, playerName)))
             }}
-            // playerName={this.state.ser}
             players={this.state.serverState.players}
           />
         </Router>
@@ -46,12 +51,14 @@ class App extends React.Component {
     )
   }
 }
-class PartyScreen extends React.Component<RouteComponentProps & { players: Array<Player> }> {
+class PartyScreen extends React.Component<
+  RouteComponentProps & { players: Array<Player>; setPlayerName: Function }
+> {
   state = {}
   componentDidMount() {
-    // if (!this.props.playerName) {
-    this.props.setPlayerName(prompt('What is your player name?'))
-    // }
+    if (!this.props.players.some(({ peerId }) => window.peerId === peerId)) {
+      this.props.setPlayerName(prompt('What is your player name?'))
+    }
   }
 
   render() {
@@ -174,6 +181,7 @@ async function initServerCxn() {
     }
   })
   window.peer = p
+  window.peerId = id
   p.on('signal', function(data: string) {
     console.log('sending our signal to the server')
     fetch('/signal', {
@@ -203,7 +211,6 @@ function handleMessage(message: Message) {
   if (message.type === 'LOG') {
     console.log(message.message)
   } else if (message.type === 'CLIENT_SAVE_STATE') {
-    console.log(message.state)
     window.appSetState({ serverState: message.state })
   }
 }
