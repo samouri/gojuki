@@ -37,6 +37,15 @@
   background-color: #00445d;
 }
 
+.app_loadingbtn {
+  font-size: 18;
+  font-family: 'Press Start 2P', cursive;
+  height: 50px;
+  width: 200px;
+  color: white;
+  text-align: center;
+}
+
 .about {
   width: 500px;
   height: 300px;

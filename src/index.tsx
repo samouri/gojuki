@@ -21,7 +21,10 @@ const Swal = withReactContent(swal)
 const fontFamily = "'Press Start 2P', cursive"
 
 class App extends React.Component {
-  state: { serverState: Party } = { serverState: { players: [], status: 'NOT_STARTED' } }
+  state: { serverState: Party; serverConnected: boolean } = {
+    serverState: { players: [], status: 'NOT_STARTED' },
+    serverConnected: false
+  }
   componentDidMount() {
     window.appSetState = (s: any) => this.setState(s)
   }
@@ -38,7 +41,7 @@ class App extends React.Component {
     return (
       <div className="app">
         <Router style={{ width: '100%', height: '100%' }}>
-          <StartScreen path="/" />
+          <StartScreen path="/" isConnected={this.state.serverConnected} />
           <PartyScreen
             path="/party"
             setPlayerName={(playerName: string) => {
@@ -98,14 +101,18 @@ class PartyScreen extends React.Component<
   }
 }
 
-class StartScreen extends React.Component<RouteComponentProps> {
+class StartScreen extends React.Component<RouteComponentProps & { isConnected: boolean }> {
   render() {
     return (
       <div className="app">
         <h1 style={{ fontSize: 80, fontFamily, color: '#e91e63', paddingTop: 90 }}>Gojuki</h1>
-        <Link to="party">
-          <button className="app__playbtn">Play</button>
-        </Link>
+        {!this.props.isConnected ? (
+          <span className="app_loadingbtn">loading...</span>
+        ) : (
+          <Link to="party">
+            <button className="app__playbtn">Play</button>
+          </Link>
+        )}
         <div style={{ flexDirection: 'row', paddingTop: '30px' }}>
           <InfoButton content={HowToPlay}>How to play</InfoButton>
           <InfoButton content={About}>About</InfoButton>
@@ -205,13 +212,14 @@ async function initServerCxn() {
 
   // get this show on the road
   p.signal(signal)
+  window.appSetState({ serverConnected: true })
 }
 
 function handleMessage(message: Message) {
   if (message.type === 'LOG') {
     console.log(message.message)
   } else if (message.type === 'CLIENT_SAVE_STATE') {
-    window.appSetState({ serverState: message.state })
+    window.appSetState({ serverState: message.state, serverConnected: true })
   }
 }
 
