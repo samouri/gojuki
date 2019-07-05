@@ -5,9 +5,10 @@ import withReactContent from "sweetalert2-react-content"
 import "./style.css"
 import { Router, Link, RouteComponentProps, navigate } from "@reach/router"
 import { Message, Party, joinParty, Player } from "../server/state"
-import { GamePlayer, World, getDefaultPlayer, stepWorld } from "../server/game"
+import { World, getDefaultPlayer, stepWorld, getGameDimensions } from "../server/game"
 import { Instance } from "simple-peer"
-import { getGameDimensions, getPressedKeys } from "./game"
+import { getPressedKeys } from "./game"
+import { drawPlayer, drawArena } from "./draw"
 
 declare global {
   interface Window {
@@ -24,7 +25,7 @@ const fontFamily = "'Press Start 2P', cursive"
 
 class App extends React.Component {
   state: { serverState: Party; serverConnected: boolean } = {
-    serverState: { players: [], status: "NOT_STARTED", world: null },
+    serverState: { players: [], status: "NOT_STARTED", world: { players: [] } },
     serverConnected: false,
   }
   componentDidMount() {
@@ -35,6 +36,8 @@ class App extends React.Component {
     if (players !== prevState.serverState.players) {
       if (players.length > 0 && status === "NOT_STARTED") {
         navigate("/party")
+      } else if (status === "PLAYING") {
+        navigate("/game")
       }
     }
   }
@@ -43,15 +46,15 @@ class App extends React.Component {
     return (
       <div className="app">
         <Router style={{ width: "100%", height: "100%" }}>
-          <GameScreen path="/" />
-          {/* <StartScreen path="/" isConnected={this.state.serverConnected} />
+          <StartScreen path="/" isConnected={this.state.serverConnected} />
           <PartyScreen
             path="/party"
             setPlayerName={(playerName: string) => {
               window.peer.send(JSON.stringify(joinParty(window.peerId, playerName)))
             }}
             players={this.state.serverState.players}
-          /> */}
+          />
+          <GameScreen path="/game" players={this.state.serverState.players} world={this.state.serverState.world} />
         </Router>
       </div>
     )
@@ -118,25 +121,18 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
   }
 }
 
-import bugImg from "../img/bug/bug1.png"
-const img = new Image()
-img.src = bugImg
-
-function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
-  ctx.translate(player.x, player.y)
-  ctx.rotate(player.rotation)
-  ctx.drawImage(img, -10, -10, 20, 20)
-  ctx.rotate(-player.rotation)
-  ctx.translate(-player.x, -player.y)
-}
-class GameScreen extends React.Component<RouteComponentProps> {
+class GameScreen extends React.Component<RouteComponentProps & any> {
   raf: number
   // ctx: CanvasRenderingContext2D
   canvas: HTMLCanvasElement
   lastTime: number
-  world: World = { players: [getDefaultPlayer(1)] }
+
+  shouldComponentUpdate() {
+    return false
+  }
 
   componentDidMount() {
+    console.log("hello")
     requestAnimationFrame(this.gameLoop)
   }
   componentWillUnmount() {
@@ -150,20 +146,21 @@ class GameScreen extends React.Component<RouteComponentProps> {
       return
     }
 
+    let { world, players } = this.props
+
     // update model
-    this.world.players[0] = { ...this.world.players[0], ...getPressedKeys() }
-    this.world = stepWorld(this.world, dt)
+    world.players[0] = { ...world.players[0], ...getPressedKeys() }
+    world = stepWorld(world, dt)
 
     // render
-    const { width, height } = getGameDimensions()
     let ctx = this.canvas.getContext("2d")
-    ctx.fillStyle = "black"
-    ctx.clearRect(0, 0, width, height)
-    this.world.players.forEach(p => drawPlayer(ctx, p))
+    drawArena(ctx, players)
+    world.players.forEach(p => drawPlayer(ctx, p))
     requestAnimationFrame(this.gameLoop)
   }
 
   render() {
+    console.log("render")
     const { width, height } = getGameDimensions()
     return (
       <>
@@ -171,6 +168,9 @@ class GameScreen extends React.Component<RouteComponentProps> {
           id="game"
           style={{ width, height, margin: "100 auto" }}
           ref={canvas => {
+            if (!canvas) {
+              return
+            }
             canvas.width = width
             canvas.height = height
             this.canvas = canvas
