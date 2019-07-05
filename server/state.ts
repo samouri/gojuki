@@ -1,5 +1,5 @@
 import * as _ from 'lodash'
-const maxPartySize = 4
+const maxPartySize = 1
 
 /* Messages & message creators */
 export type LOG_MESSAGE = { type: 'LOG'; message: string }
@@ -29,6 +29,9 @@ export type Party = {
 export type Player = {
   playerName: string
   peerId: string
+  x: number
+  y: number
+  angle: number
 }
 
 /* State Handlers */

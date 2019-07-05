@@ -41,14 +41,15 @@ class App extends React.Component {
     return (
       <div className="app">
         <Router style={{ width: '100%', height: '100%' }}>
-          <StartScreen path="/" isConnected={this.state.serverConnected} />
+          <GameScreen path="/" />
+          {/* <StartScreen path="/" isConnected={this.state.serverConnected} />
           <PartyScreen
             path="/party"
             setPlayerName={(playerName: string) => {
               window.peer.send(JSON.stringify(joinParty(window.peerId, playerName)))
             }}
             players={this.state.serverState.players}
-          />
+          /> */}
         </Router>
       </div>
     )
@@ -122,6 +123,85 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
   }
 }
 
+import bugImg from '../img/bug/bug1.png'
+const img = new Image()
+img.src = bugImg
+
+const pressedKeys = new Set()
+window.addEventListener('keydown', event => pressedKeys.add(event.code))
+window.addEventListener('keyup', event => pressedKeys.delete(event.code))
+
+class GameScreen extends React.Component<RouteComponentProps> {
+  static canvasWidth = 768
+  static canvasHeight = 480
+  raf: number
+  ctx: CanvasRenderingContext2D
+  canvas: HTMLCanvasElement
+  pressedKeys = new Set()
+  x = 0
+  y = 0
+  v = 0
+  friction = 0.9
+  turnSpeed = 0.1
+  acceleration = 1
+  rotation = 0
+
+  componentDidMount() {
+    requestAnimationFrame(this.gameLoop)
+  }
+  componentWillUnmount() {
+    cancelAnimationFrame(this.raf)
+  }
+
+  gameLoop = () => {
+    if (!this.canvas) {
+      return
+    }
+    let ctx = this.canvas.getContext('2d')
+    if (pressedKeys.has('ArrowUp')) {
+      this.v += this.acceleration
+    }
+    this.v *= this.friction
+    this.x = this.x + Math.sin(this.rotation) * this.v
+    this.y = this.y + Math.cos(this.rotation) * -1 * this.v
+    if (pressedKeys.has('ArrowLeft')) {
+      this.rotation -= this.turnSpeed
+    } else if (pressedKeys.has('ArrowRight')) {
+      this.rotation += this.turnSpeed
+    }
+    this.x = Math.min(Math.max(10, this.x), GameScreen.canvasWidth - 10)
+    this.y = Math.min(Math.max(10, this.y), GameScreen.canvasHeight - 10)
+    ctx.fillStyle = 'black'
+    ctx.clearRect(0, 0, GameScreen.canvasWidth, GameScreen.canvasHeight)
+    ctx.translate(this.x, this.y)
+    ctx.rotate(this.rotation)
+    ctx.drawImage(img, -10, -10, 20, 20)
+    ctx.rotate(-this.rotation)
+    ctx.translate(-this.x, -this.y)
+    requestAnimationFrame(this.gameLoop)
+  }
+
+  render() {
+    return (
+      <>
+        <canvas
+          id="game"
+          style={{
+            width: GameScreen.canvasWidth,
+            height: GameScreen.canvasHeight,
+            margin: '100 auto'
+          }}
+          ref={canvas => {
+            canvas.width = GameScreen.canvasWidth
+            canvas.height = GameScreen.canvasHeight
+            this.canvas = canvas
+          }}
+        />
+      </>
+    )
+  }
+}
+
 class InfoButton extends React.Component<{ content: CallableFunction }> {
   render() {
     return (
@@ -171,10 +251,6 @@ class HowToPlay extends React.Component {
     )
   }
 }
-function init() {
-  initServerCxn().catch(err => console.error(err))
-  ReactDOM.render(<App />, document.getElementById('app'))
-}
 
 async function initServerCxn() {
   console.log('init peer cxn')
@@ -223,4 +299,7 @@ function handleMessage(message: Message) {
   }
 }
 
-window.onload = init
+window.onload = function init() {
+  initServerCxn().catch(err => console.error(err))
+  ReactDOM.render(<App />, document.getElementById('app'))
+}
