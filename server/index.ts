@@ -1,10 +1,10 @@
-import * as express from 'express'
-import * as Peer from 'simple-peer'
-import * as session from 'express-session'
-import * as bodyParser from 'body-parser'
-import * as path from 'path'
-import { saveClientState, getParties, handleMessage, log } from './state'
-const wrtc: any = require('wrtc')
+import * as express from "express"
+import * as Peer from "simple-peer"
+import * as session from "express-session"
+import * as bodyParser from "body-parser"
+import * as path from "path"
+import { saveClientState, getParties, handleMessage, log } from "./state"
+const wrtc: any = require("wrtc")
 
 const app = express()
 
@@ -13,20 +13,20 @@ let peers: Peers = {}
 app.use(bodyParser.json())
 app.use(
   session({
-    secret: 'secret',
+    secret: "secret",
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false }
-  })
+    cookie: { secure: false },
+  }),
 )
 
-app.use(express.static(path.resolve(__dirname, '..', 'dist')))
+app.use(express.static(path.resolve(__dirname, "..", "dist")))
 
-app.get('/', (req, res) => {
-  res.sendFile(path.resolve(__dirname, '..', 'dist/index.html'))
+app.get("/", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "..", "dist/index.html"))
 })
 
-app.get('/signal', (req, res) => {
+app.get("/signal", (req, res) => {
   const id = req.sessionID
   // if they refresh the browser
   if (peers[id]) {
@@ -41,33 +41,33 @@ app.get('/signal', (req, res) => {
     trickle: false,
     channelConfig: {
       ordered: false,
-      maxRetransmits: 0
-    }
+      maxRetransmits: 0,
+    },
   })
   peers[id] = peer
 
-  peer.on('connect', function() {
-    console.log('CONNECTED!!!')
-    peer.send(JSON.stringify(log('babe we did it')))
+  peer.on("connect", function() {
+    console.log("CONNECTED!!!")
+    peer.send(JSON.stringify(log("babe we did it")))
   })
 
-  peer.on('signal', data => {
+  peer.on("signal", data => {
     console.log(`initial signaling for client: ${id}`)
     res.send(JSON.stringify({ id, signal: data }))
   })
-  peer.on('data', data => {
+  peer.on("data", data => {
     console.log(`receivingMessage: ${data}`)
     handleMessage(JSON.parse(data))
   })
-  peer.on('error', err => {
+  peer.on("error", err => {
     console.error(err)
     delete peers[id]
   })
-  peer.on('close', () => delete peers[id])
-  peer.on('destroy', () => delete peers[id])
+  peer.on("close", () => delete peers[id])
+  peer.on("destroy", () => delete peers[id])
 })
 
-app.post('/signal', (req, res) => {
+app.post("/signal", (req, res) => {
   const { signal } = req.body
   console.log(`signal recieved back from client: ${req.sessionID}`)
   peers[req.sessionID].signal(signal)
@@ -81,11 +81,13 @@ function sendGameUpdates() {
   for (const [partyId, party] of Object.entries(parties)) {
     for (const { peerId } of party.players) {
       const peer = peers[peerId]
-      if ((peer as any)._channel.readyState !== 'open') {
-        // filter out peers that disconnected
-        continue
+      if (isConnectedPeer(peer)) {
+        peer.send(JSON.stringify(saveClientState(party)))
       }
-      peers[peerId].send(JSON.stringify(saveClientState(party)))
     }
   }
+}
+
+function isConnectedPeer(peer: Peer.Instance) {
+  return peer && (peer as any)._channel.readyState === "open"
 }

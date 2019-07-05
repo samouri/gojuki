@@ -1,32 +1,20 @@
-// const canvasHeight = 480
-// const canvasWidth = 768
+/**
+ * Contains all the details about running a game that are client specific.
+ * This includes: canvas details, event handlers, and rendering.
+ */
+import { PlayerInput } from "../server/game"
 
-// // Initialized after page is ready.
-// let canvas
+export function getGameDimensions() {
+  return { width: 768, height: 480 }
+}
 
-// /** @type {CanvasRenderingContext2D} */
-// let ctx
-
-// const state = {
-//   pressedKeys: new Set()
-// }
-
-// window.onload = init
-// function init() {
-//   canvas = document.getElementById('game')
-//   canvas.setAttribute('height', canvasHeight)
-//   canvas.setAttribute('width', canvasWidth)
-//   ctx = canvas.getContext('2d')
-
-//   // register input handlers
-//   window.addEventListener('keydown', event => state.pressedKeys.add(event.code))
-//   window.addEventListener('keyup', event => state.pressedKeys.delete(event.code))
-
-//   // register the gameloop
-//   // setInterval(update, 16)
-//   update()
-// }
-
-// function update() {
-//   drawPartyScreen()
-// }
+const pressedKeys = new Set()
+window.addEventListener("keydown", event => pressedKeys.add(event.code))
+window.addEventListener("keyup", event => pressedKeys.delete(event.code))
+export function getPressedKeys(): PlayerInput {
+  return {
+    left: pressedKeys.has("ArrowLeft"),
+    right: pressedKeys.has("ArrowRight"),
+    up: pressedKeys.has("ArrowUp"),
+  }
+}
