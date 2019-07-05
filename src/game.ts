@@ -4,10 +4,6 @@
  */
 import { PlayerInput } from "../server/game"
 
-export function getGameDimensions() {
-  return { width: 768, height: 480 }
-}
-
 const pressedKeys = new Set()
 window.addEventListener("keydown", event => pressedKeys.add(event.code))
 window.addEventListener("keyup", event => pressedKeys.delete(event.code))

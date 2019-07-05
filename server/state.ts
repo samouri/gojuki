@@ -1,6 +1,6 @@
 import * as _ from "lodash"
-import { PlayerInput } from "./game"
-const maxPartySize = 1
+import { PlayerInput, World, getDefaultPlayer } from "./game"
+const maxPartySize = 2
 
 /* Messages & message creators */
 export type LOG_MESSAGE = { type: "LOG"; message: string }
@@ -27,7 +27,7 @@ export type stateT = {
 export type Party = {
   players: Array<Player>
   status: "NOT_STARTED" | "PLAYING" | "FINISHED"
-  world: null
+  world: World
 }
 
 export type Player = {
@@ -55,14 +55,22 @@ function handleJoinParty(peerId: string, playerName: string) {
       ? {
           ...state.parties[partyToJoin],
           players: [...state.parties[partyToJoin].players, { playerName, peerId }],
+          status:
+            maxPartySize === state.parties[partyToJoin].players.length + 1
+              ? "PLAYING"
+              : state.parties[partyToJoin].status,
         }
-      : { status: "NOT_STARTED", players: [{ peerId, playerName }] }
+      : {
+          status: "NOT_STARTED",
+          players: [{ peerId, playerName }],
+          world: { players: [getDefaultPlayer(1), getDefaultPlayer(2)] },
+        }
 
   return { ...state, parties: { ...state.parties, [partyToJoin]: newParty } }
 }
 
 export function handleMessage(message: Message) {
-  console.log(`handling message: ${message}`)
+  console.log(`handling message: ${JSON.stringify(message)}`)
   if (message.type === "JOIN_PARTY") {
     state = handleJoinParty(message.peerId, message.playerName)
   } else if (message.type === "LOG") {
