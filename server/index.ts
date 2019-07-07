@@ -3,7 +3,7 @@ import * as Peer from "simple-peer"
 import * as session from "express-session"
 import * as bodyParser from "body-parser"
 import * as path from "path"
-import { saveClientState, getParties, handleMessage, log } from "./state"
+import { saveClienUiState, getParties, handleMessage, log, saveClientGameState, getGames } from "./state"
 const wrtc: any = require("wrtc")
 
 const app = express()
@@ -82,7 +82,11 @@ function sendGameUpdates() {
     for (const { peerId } of party.players) {
       const peer = peers[peerId]
       if (isConnectedPeer(peer)) {
-        peer.send(JSON.stringify(saveClientState(party)))
+        if (party.fresh) {
+          peer.send(JSON.stringify(saveClienUiState(party)))
+          party.fresh = false
+        }
+        peer.send(JSON.stringify(saveClientGameState(getGames()[partyId])))
       }
     }
   }

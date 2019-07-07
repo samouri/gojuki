@@ -5,15 +5,25 @@ const maxPartySize = 2
 /* Messages & message creators */
 export type LOG_MESSAGE = { type: "LOG"; message: string }
 export type JOIN_PARTY_MESSAGE = { type: "JOIN_PARTY"; playerName: string; peerId: string }
-export type CLIENT_SAVE_STATE_MESSAGE = { type: "CLIENT_SAVE_STATE"; state: Party }
+export type CLIENT_SAVE_GAME_STATE_MESSAGE = { type: "CLIENT_SAVE_GAME_STATE"; state: World }
+export type CLIENT_SAVE_UI_STATE_MESSAGE = { type: "CLIENT_SAVE_UI_STATE"; state: Party }
 export type SEND_INPUTS = { type: "CLIENT_INPUTS"; input: PlayerInput }
-export type Message = LOG_MESSAGE | JOIN_PARTY_MESSAGE | CLIENT_SAVE_STATE_MESSAGE | SEND_INPUTS
+export type Message =
+  | LOG_MESSAGE
+  | JOIN_PARTY_MESSAGE
+  | CLIENT_SAVE_UI_STATE_MESSAGE
+  | SEND_INPUTS
+  | CLIENT_SAVE_GAME_STATE_MESSAGE
 
 export function log(message: string): LOG_MESSAGE {
   return { type: "LOG", message }
 }
-export function saveClientState(state: Party): CLIENT_SAVE_STATE_MESSAGE {
-  return { type: "CLIENT_SAVE_STATE", state }
+export function saveClientGameState(state: World): CLIENT_SAVE_GAME_STATE_MESSAGE {
+  return { type: "CLIENT_SAVE_GAME_STATE", state }
+}
+
+export function saveClienUiState(state: Party): CLIENT_SAVE_UI_STATE_MESSAGE {
+  return { type: "CLIENT_SAVE_UI_STATE", state }
 }
 export function joinParty(peerId: string, playerName: string): JOIN_PARTY_MESSAGE {
   return { type: "JOIN_PARTY", playerName, peerId }
@@ -21,13 +31,13 @@ export function joinParty(peerId: string, playerName: string): JOIN_PARTY_MESSAG
 
 /* State Types*/
 export type stateT = {
-  parties: { [id: string]: Party }
+  parties: { [id: string]: Party & { fresh: boolean } }
+  games: { [id: string]: World }
 }
 
 export type Party = {
   players: Array<Player>
   status: "NOT_STARTED" | "PLAYING" | "FINISHED"
-  world: World
 }
 
 export type Player = {
@@ -39,6 +49,7 @@ export type Player = {
 
 let state: stateT = {
   parties: {},
+  games: {},
 }
 
 function handleJoinParty(peerId: string, playerName: string) {
@@ -50,7 +61,7 @@ function handleJoinParty(peerId: string, playerName: string) {
     }
   }
 
-  const newParty: Party =
+  const newParty: Party & { fresh: boolean } =
     partyToJoin in state.parties
       ? {
           ...state.parties[partyToJoin],
@@ -59,14 +70,19 @@ function handleJoinParty(peerId: string, playerName: string) {
             maxPartySize === state.parties[partyToJoin].players.length + 1
               ? "PLAYING"
               : state.parties[partyToJoin].status,
+          fresh: true,
         }
       : {
           status: "NOT_STARTED",
           players: [{ peerId, playerName }],
-          world: { players: [getDefaultPlayer(1), getDefaultPlayer(2)] },
+          fresh: true,
         }
 
-  return { ...state, parties: { ...state.parties, [partyToJoin]: newParty } }
+  return {
+    ...state,
+    parties: { ...state.parties, [partyToJoin]: newParty },
+    games: { [partyToJoin]: { players: [getDefaultPlayer(1), getDefaultPlayer(2)] } },
+  }
 }
 
 export function handleMessage(message: Message) {
@@ -81,4 +97,8 @@ export function handleMessage(message: Message) {
 
 export function getParties() {
   return state.parties
+}
+
+export function getGames() {
+  return state.games
 }

@@ -7,7 +7,7 @@ import { Router, Link, RouteComponentProps, navigate } from "@reach/router"
 import { Message, Party, joinParty, Player } from "../server/state"
 import { World, getDefaultPlayer, stepWorld, getGameDimensions } from "../server/game"
 import { Instance } from "simple-peer"
-import { getPressedKeys } from "./game"
+import { getPressedKeys, clientStep } from "./game"
 import { drawPlayer, drawArena } from "./draw"
 
 declare global {
@@ -15,7 +15,11 @@ declare global {
     peer: Instance
     peerId: string
     SimplePeer: any
-    appSetState: Function
+    uiSetState: Function
+    serverGameState: World
+    serverUiState: any
+    serverWorld: World
+    clientWorld: World
   }
 }
 
@@ -25,11 +29,11 @@ const fontFamily = "'Press Start 2P', cursive"
 
 class App extends React.Component {
   state: { serverState: Party; serverConnected: boolean } = {
-    serverState: { players: [], status: "NOT_STARTED", world: { players: [] } },
+    serverState: { players: [], status: "NOT_STARTED" },
     serverConnected: false,
   }
   componentDidMount() {
-    window.appSetState = (s: any) => this.setState(s)
+    window.uiSetState = (s: any) => this.setState(s)
   }
   componentDidUpdate(_prevProps: any, prevState: { serverState: Party }) {
     const { players, status } = this.state.serverState
@@ -54,7 +58,7 @@ class App extends React.Component {
             }}
             players={this.state.serverState.players}
           />
-          <GameScreen path="/game" players={this.state.serverState.players} world={this.state.serverState.world} />
+          <GameScreen path="/game" players={this.state.serverState.players} />
         </Router>
       </div>
     )
@@ -122,39 +126,37 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
 }
 
 class GameScreen extends React.Component<RouteComponentProps & any> {
-  raf: number
   // ctx: CanvasRenderingContext2D
   canvas: HTMLCanvasElement
   lastTime: number
-
-  shouldComponentUpdate() {
-    return false
-  }
+  _isMounted: boolean
 
   componentDidMount() {
-    console.log("hello")
+    this._isMounted = true
     requestAnimationFrame(this.gameLoop)
   }
   componentWillUnmount() {
-    cancelAnimationFrame(this.raf)
+    this._isMounted = false
   }
 
   gameLoop = (time: number) => {
     const dt = time - this.lastTime
     this.lastTime = time
-    if (!this.canvas) {
+    if (!this.canvas || !window.clientWorld || !window.serverGameState.players) {
       return
     }
 
-    let { world, players } = this.props
+    let { players } = this.props
+    let world = window.clientWorld
 
     // update model
     world.players[0] = { ...world.players[0], ...getPressedKeys() }
-    world = stepWorld(world, dt)
+    clientStep(world)
 
     // render
     let ctx = this.canvas.getContext("2d")
     drawArena(ctx, players)
+    console.log(players)
     world.players.forEach(p => drawPlayer(ctx, p))
     requestAnimationFrame(this.gameLoop)
   }
@@ -174,6 +176,7 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
             canvas.width = width
             canvas.height = height
             this.canvas = canvas
+            requestAnimationFrame(this.gameLoop)
           }}
         />
       </>
@@ -265,14 +268,17 @@ async function initServerCxn() {
 
   // get this show on the road
   p.signal(signal)
-  window.appSetState({ serverConnected: true })
+  window.uiSetState({ serverConnected: true })
 }
 
 function handleMessage(message: Message) {
   if (message.type === "LOG") {
     console.log(message.message)
-  } else if (message.type === "CLIENT_SAVE_STATE") {
-    window.appSetState({ serverState: message.state, serverConnected: true })
+  } else if (message.type === "CLIENT_SAVE_UI_STATE") {
+    window.serverUiState = message.state
+    window.uiSetState({ serverState: message.state, serverConnected: true })
+  } else if (message.type === "CLIENT_SAVE_GAME_STATE") {
+    window.serverGameState = message.state
   }
 }
 
