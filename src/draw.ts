@@ -1,7 +1,7 @@
-import { GamePlayer, PLAYER_CONFIG, getGameDimensions } from "../server/game"
+import { GamePlayer, PLAYER_CONFIG, getGameDimensions } from '../server/game'
 
-import bugImg from "../img/bug/bug1.png"
-import { Player } from "../server/state"
+import bugImg from '../img/bug/bug1.png'
+import { Player } from '../server/state'
 const img = new Image()
 img.src = bugImg
 
@@ -16,7 +16,7 @@ export function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
 }
 
 export function drawArena(ctx: CanvasRenderingContext2D, players: Array<Player>) {
-  ctx.fillStyle = "black"
+  ctx.fillStyle = 'black'
   const { width, height } = getGameDimensions()
   ctx.clearRect(0, 0, width, height)
 
@@ -27,8 +27,8 @@ export function drawArena(ctx: CanvasRenderingContext2D, players: Array<Player>)
     ctx.fillStyle = cfg.color
     ctx.fillRect(cfg.basePosition.x, cfg.basePosition.y, 70, 70)
 
-    ctx.fillStyle = "white"
-    ctx.fillText("name", cfg.basePosition.x + 5, cfg.basePosition.y + 65)
+    ctx.fillStyle = 'white'
+    ctx.fillText('name', cfg.basePosition.x + 5, cfg.basePosition.y + 65)
   }
 }
 
@@ -43,11 +43,11 @@ function drawTintedImage(
   width: number,
   height: number,
   ctx: CanvasRenderingContext2D,
-  fillStyle: string,
+  fillStyle: string
 ) {
   if (!buffer) {
-    buffer = document.createElement("canvas")
-    bufferContext = buffer.getContext("2d")
+    buffer = document.createElement('canvas')
+    bufferContext = buffer.getContext('2d')
   }
   // var srcwidth = img.width,
   //   srcheight = img.height
@@ -67,16 +67,16 @@ function tint(
   x: number,
   y: number,
   width: number,
-  height: number,
+  height: number
 ) {
   context.clearRect(0, 0, width, height)
 
   context.fillStyle = fillStyle
   context.fillRect(0, 0, width, height)
 
-  context.globalCompositeOperation = "multiply"
+  context.globalCompositeOperation = 'multiply'
   context.drawImage(image, 0, 0, width, height)
 
-  context.globalCompositeOperation = "destination-atop"
+  context.globalCompositeOperation = 'destination-atop'
   context.drawImage(image, 0, 0, width, height)
 }
