@@ -70,11 +70,7 @@ export type World = {
   players: Array<GamePlayer>
 }
 
-export function stepWorld(world: World, dt: number): World {
-  if (!dt || dt < 1) {
-    return world
-  }
-
+export function stepWorld(world: World): World {
   const gameDim = getGameDimensions()
   const newPlayers = []
   for (const player of world.players) {
