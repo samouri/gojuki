@@ -1,14 +1,14 @@
-import * as React from "react"
-import * as ReactDOM from "react-dom"
-import swal from "sweetalert2"
-import withReactContent from "sweetalert2-react-content"
-import "./style.css"
-import { Router, Link, RouteComponentProps, navigate } from "@reach/router"
-import { Message, Party, joinParty, Player } from "../server/state"
-import { World, getDefaultPlayer, stepWorld, getGameDimensions } from "../server/game"
-import { Instance } from "simple-peer"
-import { getPressedKeys, clientStep } from "./game"
-import { drawPlayer, drawArena } from "./draw"
+import * as React from 'react'
+import * as ReactDOM from 'react-dom'
+import swal from 'sweetalert2'
+import withReactContent from 'sweetalert2-react-content'
+import './style.css'
+import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
+import { Message, Party, joinParty, Player } from '../server/state'
+import { World, getDefaultPlayer, stepWorld, getGameDimensions } from '../server/game'
+import { Instance } from 'simple-peer'
+import { getPressedKeys, clientStep } from './game'
+import { drawPlayer, drawArena } from './draw'
 
 declare global {
   interface Window {
@@ -29,8 +29,8 @@ const fontFamily = "'Press Start 2P', cursive"
 
 class App extends React.Component {
   state: { serverState: Party; serverConnected: boolean } = {
-    serverState: { players: [], status: "NOT_STARTED" },
-    serverConnected: false,
+    serverState: { players: [], status: 'NOT_STARTED' },
+    serverConnected: false
   }
   componentDidMount() {
     window.uiSetState = (s: any) => this.setState(s)
@@ -38,10 +38,10 @@ class App extends React.Component {
   componentDidUpdate(_prevProps: any, prevState: { serverState: Party }) {
     const { players, status } = this.state.serverState
     if (players !== prevState.serverState.players) {
-      if (players.length > 0 && status === "NOT_STARTED") {
-        navigate("/party")
-      } else if (status === "PLAYING") {
-        navigate("/game")
+      if (players.length > 0 && status === 'NOT_STARTED') {
+        navigate('/party')
+      } else if (status === 'PLAYING') {
+        navigate('/game')
       }
     }
   }
@@ -49,7 +49,7 @@ class App extends React.Component {
   render() {
     return (
       <div className="app">
-        <Router style={{ width: "100%", height: "100%" }}>
+        <Router style={{ width: '100%', height: '100%' }}>
           <StartScreen path="/" isConnected={this.state.serverConnected} />
           <PartyScreen
             path="/party"
@@ -64,35 +64,42 @@ class App extends React.Component {
     )
   }
 }
-class PartyScreen extends React.Component<RouteComponentProps & { players: Array<Player>; setPlayerName: Function }> {
+class PartyScreen extends React.Component<
+  RouteComponentProps & { players: Array<Player>; setPlayerName: Function }
+> {
   state = {}
   componentDidMount() {
     if (!this.props.players.some(({ peerId }) => window.peerId === peerId)) {
-      this.props.setPlayerName(prompt("What is your player name?"))
+      this.props.setPlayerName(prompt('What is your player name?'))
     }
   }
 
   render() {
     const { players } = this.props
-    const playerColors = ["#E93F3F", "#3FE992", "#3FD3E9", "#E93FDB"]
+    const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
     const maxPlayers = 4
     const waitingFor = maxPlayers - players.length
 
     return (
-      <div className="partyScreen" style={{ width: "100%", flexDirection: "column", alignItems: "center" }}>
-        <div style={{ flexDirection: "row", alignSelf: "start", padding: 20 }}>
+      <div
+        className="partyScreen"
+        style={{ width: '100%', flexDirection: 'column', alignItems: 'center' }}
+      >
+        <div style={{ flexDirection: 'row', alignSelf: 'start', padding: 20 }}>
           <Link to="/" className="yellowBtn">
             <span>Home</span>
           </Link>
           <InfoButton content={HowToPlay}>How to play</InfoButton>
         </div>
-        <h1 style={{ fontSize: 32, fontFamily, color: "#e91e63" }}>Party Lobby</h1>
-        <h1 style={{ fontSize: 18, fontFamily, color: "white" }}>Waiting for {waitingFor} more player(s)...</h1>
+        <h1 style={{ fontSize: 32, fontFamily, color: '#e91e63' }}>Party Lobby</h1>
+        <h1 style={{ fontSize: 18, fontFamily, color: 'white' }}>
+          Waiting for {waitingFor} more player(s)...
+        </h1>
         <ul id="player-list">
           {players.map(({ playerName }, i) => (
             <li
-              className={"player player-" + (i + 1)}
-              style={{ color: playerColors[i], paddingBottom: "15" }}
+              className={'player player-' + (i + 1)}
+              style={{ color: playerColors[i], paddingBottom: '15' }}
               key={playerName}
             >
               player {i + 1}: {playerName}
@@ -108,7 +115,7 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
   render() {
     return (
       <div className="app">
-        <h1 style={{ fontSize: 80, fontFamily, color: "#e91e63", paddingTop: 90 }}>Gojuki</h1>
+        <h1 style={{ fontSize: 80, fontFamily, color: '#e91e63', paddingTop: 90 }}>Gojuki</h1>
         {!this.props.isConnected ? (
           <span className="app_loadingbtn">loading...</span>
         ) : (
@@ -116,7 +123,7 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
             <button className="app__playbtn">Play</button>
           </Link>
         )}
-        <div style={{ flexDirection: "row", paddingTop: "30px" }}>
+        <div style={{ flexDirection: 'row', paddingTop: '30px' }}>
           <InfoButton content={HowToPlay}>How to play</InfoButton>
           <InfoButton content={About}>About</InfoButton>
         </div>
@@ -154,7 +161,7 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
     clientStep(world)
 
     // render
-    let ctx = this.canvas.getContext("2d")
+    let ctx = this.canvas.getContext('2d')
     drawArena(ctx, players)
     console.log(players)
     world.players.forEach(p => drawPlayer(ctx, p))
@@ -162,13 +169,13 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
   }
 
   render() {
-    console.log("render")
+    console.log('render')
     const { width, height } = getGameDimensions()
     return (
       <>
         <canvas
           id="game"
-          style={{ width, height, margin: "100 auto" }}
+          style={{ width, height, margin: '100 auto' }}
           ref={canvas => {
             if (!canvas) {
               return
@@ -192,8 +199,8 @@ class InfoButton extends React.Component<{ content: CallableFunction }> {
         onClick={() =>
           Swal.fire({
             html: <this.props.content />,
-            customClass: { confirmButton: "sweetalert_confirm" },
-            showCloseButton: true,
+            customClass: { confirmButton: 'sweetalert_confirm' },
+            showCloseButton: true
           })
         }
       >
@@ -209,7 +216,9 @@ class About extends React.Component {
       <div className="about">
         <h1 className="about__header">About</h1>
         <p className="about__content">Hungry, Hungry, ...Cockroaches?</p>
-        <p className="about__content">Maybe this is what insects do in your kitchen when you're sleeping.</p>
+        <p className="about__content">
+          Maybe this is what insects do in your kitchen when you're sleeping.
+        </p>
         <br />
       </div>
     )
@@ -233,36 +242,36 @@ class HowToPlay extends React.Component {
 }
 
 async function initServerCxn() {
-  console.log("init peer cxn")
-  const { signal, id } = await (await fetch("/signal")).json()
-  console.log("successfully fetched signal from server")
+  console.log('init peer cxn')
+  const { signal, id } = await (await fetch('/signal')).json()
+  console.log('successfully fetched signal from server')
   var p = new window.SimplePeer({
     trickle: false,
     channelConfig: {
       ordered: false,
-      maxRetransmits: 0,
-    },
+      maxRetransmits: 0
+    }
   })
   window.peer = p
   window.peerId = id
-  p.on("signal", function(data: string) {
-    console.log("sending our signal to the server")
-    fetch("/signal", {
-      method: "POST",
+  p.on('signal', function(data: string) {
+    console.log('sending our signal to the server')
+    fetch('/signal', {
+      method: 'POST',
       headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ id, signal: data }),
-      credentials: "include",
+      credentials: 'include'
     })
   })
 
-  p.on("connect", function() {
-    console.log("CONNECTED")
+  p.on('connect', function() {
+    console.log('CONNECTED')
   })
 
-  p.on("data", function(data: string) {
+  p.on('data', function(data: string) {
     handleMessage(JSON.parse(data) as Message)
   })
 
@@ -272,17 +281,17 @@ async function initServerCxn() {
 }
 
 function handleMessage(message: Message) {
-  if (message.type === "LOG") {
+  if (message.type === 'LOG') {
     console.log(message.message)
-  } else if (message.type === "CLIENT_SAVE_UI_STATE") {
+  } else if (message.type === 'CLIENT_SAVE_UI_STATE') {
     window.serverUiState = message.state
     window.uiSetState({ serverState: message.state, serverConnected: true })
-  } else if (message.type === "CLIENT_SAVE_GAME_STATE") {
+  } else if (message.type === 'CLIENT_SAVE_GAME_STATE') {
     window.serverGameState = message.state
   }
 }
 
 window.onload = function init() {
   initServerCxn().catch(err => console.error(err))
-  ReactDOM.render(<App />, document.getElementById("app"))
+  ReactDOM.render(<App />, document.getElementById('app'))
 }

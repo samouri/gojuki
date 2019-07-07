@@ -22,33 +22,36 @@ export type GamePlayer = PlayerInput & {
 const baseSize = 70
 export const PLAYER_CONFIG: { [id: number]: any } = {
   1: {
-    color: "#E93F3F",
+    color: '#E93F3F',
     startPosition: { x: baseSize / 2, y: baseSize / 2, rotation: Math.PI },
-    basePosition: { x: 0, y: 0 },
+    basePosition: { x: 0, y: 0 }
   },
   2: {
-    color: "#38D183",
+    color: '#38D183',
     startPosition: {
       x: getGameDimensions().width - baseSize / 2.0,
       y: baseSize / 2,
-      rotation: Math.PI,
+      rotation: Math.PI
     },
-    basePosition: { x: getGameDimensions().width - baseSize, y: 0 },
+    basePosition: { x: getGameDimensions().width - baseSize, y: 0 }
   },
   3: {
-    color: "#3FD3E9",
+    color: '#3FD3E9',
     startPosition: { x: baseSize / 2.0, y: getGameDimensions().height - baseSize / 2, rotation: 0 },
-    basePosition: { x: 0, y: getGameDimensions().height - baseSize },
+    basePosition: { x: 0, y: getGameDimensions().height - baseSize }
   },
   4: {
-    color: "#E93FDB",
+    color: '#E93FDB',
     startPosition: {
       x: getGameDimensions().width - baseSize / 2.0,
       y: getGameDimensions().height - baseSize / 2,
-      rotation: 0,
+      rotation: 0
     },
-    basePosition: { x: getGameDimensions().width - baseSize, y: getGameDimensions().height - baseSize },
-  },
+    basePosition: {
+      x: getGameDimensions().width - baseSize,
+      y: getGameDimensions().height - baseSize
+    }
+  }
 }
 
 export function getDefaultPlayer(playerNum: number): GamePlayer {
@@ -62,7 +65,7 @@ export function getDefaultPlayer(playerNum: number): GamePlayer {
     acceleration: 1,
     left: false,
     right: false,
-    up: false,
+    up: false
   }
 }
 
