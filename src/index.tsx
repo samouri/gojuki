@@ -7,7 +7,13 @@ import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
 import { Message, Party, joinParty, Player } from '../server/state'
 import { World, getDefaultPlayer, stepWorld, getGameDimensions } from '../server/game'
 import { Instance } from 'simple-peer'
-import { getPressedKeys, clientStep } from './game'
+import {
+  getPressedKeys,
+  clientStep,
+  receiveServerWorld,
+  localClientStep,
+  getClientTick
+} from './game'
 import { drawPlayer, drawArena } from './draw'
 
 declare global {
@@ -15,9 +21,8 @@ declare global {
     peer: Instance
     peerId: string
     SimplePeer: any
-    uiSetState: Function
     serverGameState: World
-    serverUiState: any
+    appSetState: any
     serverWorld: World
     clientWorld: World
   }
@@ -29,11 +34,11 @@ const fontFamily = "'Press Start 2P', cursive"
 
 class App extends React.Component {
   state: { serverState: Party; serverConnected: boolean } = {
-    serverState: { players: [], status: 'NOT_STARTED' },
+    serverState: { players: [], status: 'NOT_STARTED', serverTick: 0 },
     serverConnected: false
   }
   componentDidMount() {
-    window.uiSetState = (s: any) => this.setState(s)
+    window.appSetState = (s: any) => this.setState(s)
   }
   componentDidUpdate(_prevProps: any, prevState: { serverState: Party }) {
     const { players, status } = this.state.serverState
@@ -153,12 +158,12 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
       return
     }
 
-    let { players } = this.props
+    let players: Array<Player> = this.props.players
     let world = window.clientWorld
 
     // update model
-    world.players[0] = { ...world.players[0], ...getPressedKeys() }
-    clientStep(world)
+    const playerId = players.findIndex(player => player.peerId === window.peerId)
+    world = localClientStep(world, playerId)
 
     // render
     let ctx = this.canvas.getContext('2d')
@@ -277,17 +282,22 @@ async function initServerCxn() {
 
   // get this show on the road
   p.signal(signal)
-  window.uiSetState({ serverConnected: true })
+  window.appSetState({ serverConnected: true })
 }
 
 function handleMessage(message: Message) {
   if (message.type === 'LOG') {
     console.log(message.message)
-  } else if (message.type === 'CLIENT_SAVE_UI_STATE') {
-    window.serverUiState = message.state
-    window.uiSetState({ serverState: message.state, serverConnected: true })
-  } else if (message.type === 'CLIENT_SAVE_GAME_STATE') {
-    window.serverGameState = message.state
+  } else if (message.type === 'SERVER_TICK') {
+    console.log(`Receiving message: ${JSON.stringify(message)}`)
+    receiveServerWorld(message.world, {
+      clientTick: message.clientTick,
+      serverTick: message.serverTick
+    })
+
+    if (message.party) {
+      window.appSetState({ serverState: message.party, serverConnected: true })
+    }
   }
 }
 

@@ -2,6 +2,7 @@
  * All of the game state that is shared between servers and all clients.
  * This means only the model (state).
  */
+import * as _ from 'lodash'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -71,6 +72,7 @@ export function getDefaultPlayer(playerNum: number): GamePlayer {
 
 export type World = {
   players: Array<GamePlayer>
+  serverTick: number
 }
 
 export function stepWorld(world: World): World {
@@ -95,6 +97,32 @@ export function stepWorld(world: World): World {
     p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
     newPlayers.push(p)
   }
+
+  return { ...world, players: newPlayers }
+}
+
+export function stepPlayer(world: World, playerId: number, input: PlayerInput): World {
+  const gameDim = getGameDimensions()
+  const newPlayers: Array<GamePlayer> = [...world.players]
+
+  const p = { ...world.players[playerId] }
+  if (input.up) {
+    p.v += p.acceleration
+  }
+  p.v *= p.friction
+  p.x = p.x + Math.sin(p.rotation) * p.v
+  p.y = p.y + Math.cos(p.rotation) * -1 * p.v
+
+  if (input.left) {
+    p.rotation -= p.turnSpeed
+  } else if (input.right) {
+    p.rotation += p.turnSpeed
+  }
+
+  p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
+  p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
+
+  newPlayers[playerId] = p
 
   return { ...world, players: newPlayers }
 }
