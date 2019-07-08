@@ -3,14 +3,7 @@ import * as Peer from 'simple-peer'
 import * as session from 'express-session'
 import * as bodyParser from 'body-parser'
 import * as path from 'path'
-import {
-  saveClienUiState,
-  getParties,
-  handleMessage,
-  log,
-  saveClientGameState,
-  getGames
-} from './state'
+import { handleMessage, log, getTickData } from './state'
 const wrtc: any = require('wrtc')
 
 const app = express()
@@ -64,7 +57,7 @@ app.get('/signal', (req, res) => {
   })
   peer.on('data', data => {
     console.log(`receivingMessage: ${data}`)
-    handleMessage(JSON.parse(data))
+    handleMessage(JSON.parse(data), id)
   })
   peer.on('error', err => {
     console.error(err)
@@ -84,17 +77,11 @@ app.listen(3000)
 
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
-  const parties = getParties()
-  for (const [partyId, party] of Object.entries(parties)) {
-    for (const { peerId } of party.players) {
-      const peer = peers[peerId]
-      if (isConnectedPeer(peer)) {
-        if (party.fresh) {
-          peer.send(JSON.stringify(saveClienUiState(party)))
-          party.fresh = false
-        }
-        peer.send(JSON.stringify(saveClientGameState(getGames()[partyId])))
-      }
+  for (const [peerId, tickMessage] of Object.entries(getTickData())) {
+    // todo: is it okay that getTickData also increases the serverTick?
+    const peer = peers[peerId]
+    if (isConnectedPeer(peer) && (tickMessage.party || tickMessage.world)) {
+      peer.send(JSON.stringify(tickMessage))
     }
   }
 }
