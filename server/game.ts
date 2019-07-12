@@ -10,7 +10,7 @@ export function getGameDimensions() {
 }
 
 export type PlayerInput = { left: boolean; right: boolean; up: boolean }
-export type GamePlayer = PlayerInput & {
+export type GamePlayer = {
   x: number
   y: number
   v: number
@@ -63,10 +63,7 @@ export function getDefaultPlayer(playerNum: number): GamePlayer {
     rotation: PLAYER_CONFIG[playerNum].startPosition.rotation,
     friction: 0.9,
     turnSpeed: 0.1,
-    acceleration: 1,
-    left: false,
-    right: false,
-    up: false
+    acceleration: 0.2
   }
 }
 
@@ -75,52 +72,56 @@ export type World = {
   serverTick: number
 }
 
-export function stepWorld(world: World): World {
+// export function stepWorld(world: World): World {
+//   const gameDim = getGameDimensions()
+//   const newPlayers = []
+//   for (const player of world.players) {
+//     const p = { ...player }
+//     if (p.up) {
+//       p.v += p.acceleration
+//     }
+//     p.v *= p.friction
+//     p.x = p.x + Math.sin(p.rotation) * p.v
+//     p.y = p.y + Math.cos(p.rotation) * -1 * p.v
+
+//     if (p.left) {
+//       p.rotation -= p.turnSpeed
+//     } else if (p.right) {
+//       p.rotation += p.turnSpeed
+//     }
+
+//     p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
+//     p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
+//     newPlayers.push(p)
+//   }
+
+//   return { ...world, players: newPlayers }
+// }
+
+export function stepPlayer(world: World, playerId: number, inputs: Array<PlayerInput>): World {
   const gameDim = getGameDimensions()
-  const newPlayers = []
-  for (const player of world.players) {
-    const p = { ...player }
-    if (p.up) {
+  const newPlayers: Array<GamePlayer> = [...world.players]
+  inputs = [...inputs]
+
+  const p = { ...world.players[playerId] }
+  while (!_.isEmpty(inputs)) {
+    const input = inputs.pop()
+    if (input.up) {
       p.v += p.acceleration
     }
     p.v *= p.friction
     p.x = p.x + Math.sin(p.rotation) * p.v
     p.y = p.y + Math.cos(p.rotation) * -1 * p.v
 
-    if (p.left) {
+    if (input.left) {
       p.rotation -= p.turnSpeed
-    } else if (p.right) {
+    } else if (input.right) {
       p.rotation += p.turnSpeed
     }
 
     p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
     p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
-    newPlayers.push(p)
   }
-
-  return { ...world, players: newPlayers }
-}
-
-export function stepPlayer(world: World, playerId: number, input: PlayerInput): World {
-  const gameDim = getGameDimensions()
-  const newPlayers: Array<GamePlayer> = [...world.players]
-
-  const p = { ...world.players[playerId] }
-  if (input.up) {
-    p.v += p.acceleration
-  }
-  p.v *= p.friction
-  p.x = p.x + Math.sin(p.rotation) * p.v
-  p.y = p.y + Math.cos(p.rotation) * -1 * p.v
-
-  if (input.left) {
-    p.rotation -= p.turnSpeed
-  } else if (input.right) {
-    p.rotation += p.turnSpeed
-  }
-
-  p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
-  p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
 
   newPlayers[playerId] = p
 
