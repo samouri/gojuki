@@ -1,6 +1,5 @@
 import * as _ from 'lodash'
 import { PlayerInput, World, getDefaultPlayer, stepPlayer } from './game'
-import { InputType } from 'zlib'
 const maxPartySize = 2
 let serverTick = 0
 
@@ -41,7 +40,7 @@ export type stateT = {
   parties: { [id: string]: Party }
   games: { [id: string]: World }
   clientTicks: {
-    [id: string]: { clientTick: number; ackedServerTick: number; clientTickAtLastAck: number }
+    [id: string]: { clientTick: number; ackedServerTick: number }
   }
 }
 
@@ -81,7 +80,8 @@ function handleJoinParty(peerId: string, playerName: string): stateT {
           status:
             maxPartySize === state.parties[partyToJoin].players.length + 1
               ? 'PLAYING'
-              : state.parties[partyToJoin].status
+              : state.parties[partyToJoin].status,
+          serverTick
         }
       : {
           status: 'NOT_STARTED',
@@ -97,7 +97,7 @@ function handleJoinParty(peerId: string, playerName: string): stateT {
 }
 
 export function handleMessage(message: Message, peerId: string) {
-  console.log(`handling message: ${JSON.stringify(message)}`)
+  // console.log(`handling message: ${JSON.stringify(message)}`)
   if (message.type === 'JOIN_PARTY') {
     state = handleJoinParty(peerId, message.playerName)
   } else if (message.type === 'LOG') {
@@ -105,51 +105,55 @@ export function handleMessage(message: Message, peerId: string) {
   } else if (message.type === 'CLIENT_TICK') {
     state.clientTicks[peerId] = state.clientTicks[peerId] || {
       ackedServerTick: -1,
-      clientTick: -1,
-      clientTickAtLastAck: -1
+      clientTick: -1
     }
-    const { clientTick, ackedServerTick, clientTickAtLastAck } = state.clientTicks[peerId]
+    if (message.clientTick <= state.clientTicks[peerId].clientTick) {
+      console.log(`dupe or outdated message because of outdated clientTick: ${message.clientTick}`)
+    }
+
+    const { clientTick, ackedServerTick } = state.clientTicks[peerId]
     const hostId = getHostForPeer(peerId)
     if (!hostId) {
+      // they may not have started a game yet
       state.clientTicks[peerId] = {
         ackedServerTick: Math.max(ackedServerTick, message.serverTick),
-        clientTick: Math.max(clientTick, message.clientTick),
-        clientTickAtLastAck: ackedServerTick < message.serverTick ? clientTick : clientTickAtLastAck
+        clientTick: Math.max(clientTick, message.clientTick)
       }
+      console.log(
+        `no game started yet, setting the ticks: ${JSON.stringify(state.clientTicks[peerId])}`
+      )
       return
     }
-    const inputsTicks: Array<number> = _.sortBy(Object.keys(message.inputs).map(_.toNumber)).filter(
-      tickId => clientTick < tickId
-    )
+    const inputsTicks: Array<number> = Object.keys(message.inputs)
+      .map(Number)
+      .sort((a, b) => a - b) // ascending order
+      .filter(tickId => tickId > clientTick)
 
-    const ticksSinceLastUpdate = serverTick - ackedServerTick
-    const inputs = _.pick(
-      message.inputs,
-      _.takeRight(inputsTicks, Math.min(5, ticksSinceLastUpdate)) // if someone is more than 5 ticks behind...too bad for them, we'll drop their inputs and they can rubberband
-    )
+    // This is awful. Simpler better logic should be on the server to hold a counter from 0 that increments up by one every 16ms
+    // and then players can be bursty with their lag, but we max out at letting them do ~4 moves at once. kind of like bursty apis with quotas
+    const ticksSinceLastUpdate = Number.POSITIVE_INFINITY //serverTick - ackedServerTick
+    const inputs: Array<PlayerInput> = _.takeRight(
+      inputsTicks,
+      Math.min(5, ticksSinceLastUpdate)
+    ).map(tId => message.inputs[tId]) // if someone is more than 5 ticks behind...too bad for them, we'll drop their inputs and they can rubberband
 
-    let newWorld = state.games[hostId]
     // newWorld.serverTick = serverTick
     // TODO: move off index this sucks
-    let playerId = -1
-    state.parties[hostId].players.forEach((player, index) => {
-      if (player.peerId === peerId) {
-        playerId = index
-      }
-    })
+    let playerId = state.parties[hostId].players.findIndex(player => player.peerId === peerId)
+    // console.log(JSON.stringify(state.parties[hostId]))
     if (playerId === -1) {
-      throw new Error(`playerId is -1, could not find player for peer ${peerId}`)
+      console.error(`playerId is -1, could not find player for peer ${peerId}`)
+      return
     }
 
-    for (const input of Object.values(inputs)) {
-      newWorld = stepPlayer(newWorld, playerId, input)
-    }
+    const newWorld = stepPlayer(state.games[hostId], playerId, inputs)
+    newWorld.serverTick = serverTick
+
     state.games[hostId] = newWorld
 
     state.clientTicks[peerId] = {
       ackedServerTick: Math.max(ackedServerTick, message.serverTick),
-      clientTick: Math.max(clientTick, message.clientTick),
-      clientTickAtLastAck: ackedServerTick < message.serverTick ? clientTick : clientTickAtLastAck
+      clientTick: Math.max(clientTick, message.clientTick)
     }
   }
 }
@@ -183,39 +187,47 @@ function getHostForPeer(peerId: string) {
   // throw Error(`Could not find host for peerId: ${peerId}`)
 }
 
-function getDataToSend(peerId: string, hostId: string): SERVER_TICK_MESSAGE {
-  // const hostId = getHostForPeer(peerId)
-  state.clientTicks[peerId] = state.clientTicks[peerId] || {
-    ackedServerTick: -1,
-    clientTick: -1,
-    clientTickAtLastAck: -1
-  }
-  const { ackedServerTick, clientTick } = state.clientTicks[peerId]
-  const data: SERVER_TICK_MESSAGE = {
-    type: 'SERVER_TICK',
-    serverTick,
-    clientTick,
-    world: null,
-    party: null
+function getGameDataToSend(peerId: string, hostId: string): { world: World; party: Party } {
+  if (!peerId || !hostId) {
+    // throw new Error(`peerId: ${peerId} hostId: ${hostId}`)
+    return { world: null, party: null }
   }
 
-  if (ackedServerTick < state.games[hostId].serverTick) {
-    data.world = state.games[hostId]
-  }
-  if (ackedServerTick < state.parties[hostId].serverTick) {
-    data.party = state.parties[hostId]
-  }
+  const { ackedServerTick } = state.clientTicks[peerId]
+  console.log(ackedServerTick, _.get(state.games, [hostId, 'serverTick']))
 
-  return data
+  return {
+    party:
+      ackedServerTick <= _.get(state.parties, [hostId, 'serverTick'])
+        ? state.parties[hostId]
+        : null,
+    world:
+      ackedServerTick <= _.get(state.games, [hostId, 'serverTick']) ? state.games[hostId] : null
+  }
 }
 
-export function getTickData() {
+function getHeartbeatDataToSend(peerId: string) {
+  return { serverTick, clientTick: state.clientTicks[peerId].clientTick }
+}
+
+export function getTickData(peers: Array<string>): { [id: string]: SERVER_TICK_MESSAGE } {
   serverTick++
 
-  const data: { [peerId: string]: SERVER_TICK_MESSAGE } = {}
-  Object.entries(state.parties).forEach(([hostId, party]) => {
-    party.players.forEach(player => (data[player.peerId] = getDataToSend(player.peerId, hostId)))
-  })
+  const tickData = peers.reduce((prevData: { [id: string]: SERVER_TICK_MESSAGE }, peerId) => {
+    state.clientTicks[peerId] = state.clientTicks[peerId] || {
+      ackedServerTick: -1,
+      clientTick: -1
+    }
 
-  return data
+    prevData[peerId] = {
+      type: 'SERVER_TICK',
+      serverTick,
+      clientTick: state.clientTicks[peerId].clientTick,
+      ...getHeartbeatDataToSend(peerId),
+      ...getGameDataToSend(peerId, getHostForPeer(peerId))
+    }
+    return prevData
+  }, {})
+
+  return tickData
 }

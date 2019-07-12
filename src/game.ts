@@ -2,8 +2,8 @@
  * Contains all the details about running a game that are client specific.
  * This includes: canvas details, event handlers, and rendering.
  */
-import { PlayerInput, World, stepWorld } from '../server/game'
-import { CLIENT_TICK_MESSAGE, Player } from '../server/state'
+import { PlayerInput, World, stepPlayer } from '../server/game'
+import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE } from '../server/state'
 import * as _ from 'lodash'
 
 const pressedKeys = new Set()
@@ -17,73 +17,98 @@ export function getPressedKeys(): PlayerInput {
   }
 }
 
-export function receiveServerWorld(
-  world: World,
-  ticks: { serverTick: number; clientTick: number }
-) {
-  if (serverTick < ticks.serverTick) {
-    window.serverWorld = world
-    serverTick = ticks.serverTick
+export function handleServerTick(message: SERVER_TICK_MESSAGE) {
+  if (!message) {
+    throw new Error('new message!!')
   }
-  if (ackedClientTick < ticks.clientTick) {
-    ackedClientTick = ticks.clientTick
-  }
+  /* Update global ticks*/
 
-  if (!world) {
-    return
+  if (serverTick < message.serverTick) {
+    serverTick = message.serverTick
+  }
+  if (ackedClientTick < message.clientTick) {
+    ackedClientTick = message.clientTick
   }
 
-  unackedInputs = _.pickBy(
-    unackedInputs,
-    (input, tickId: number) => ticks.clientTick < tickId
-  ) as any
+  /* Update states*/
+  const shouldUpdateParty =
+    !window.serverParty ||
+    (message.party && message.party.serverTick >= window.serverParty.serverTick)
+  if (message.party && shouldUpdateParty) {
+    window.appSetState({ serverState: message.party, serverConnected: true })
+    window.serverParty = message.party
+  }
 
-  let newClientWorld = world
-  _.sortBy(Object.values(unackedInputs)).forEach(
-    inputs => (newClientWorld = clientStep(newClientWorld, playerId, inputs))
+  const shouldUpdateWorld =
+    !window.serverWorld ||
+    (message.world && message.world.serverTick >= window.serverWorld.serverTick)
+  if (message.world && shouldUpdateWorld) {
+    receiveServerWorld(message.world)
+  }
+}
+
+// 1. Figure out which inputs can be discarded
+// 2. Update the world with all of the new state.
+export function receiveServerWorld(world: World) {
+  console.log('recieving world!! ', world.serverTick)
+  window.serverWorld = world
+  const unackedTickIds: Array<number> = Object.keys(unackedInputs)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .filter(tId => tId > ackedClientTick)
+  unackedInputs = _.pick(unackedInputs, _.takeRight(unackedTickIds, 5))
+  window.clientWorld = stepPlayer(
+    world,
+    getPlayerId(),
+    unackedTickIds.map(tId => unackedInputs[tId])
   )
-  clientWorld = newClientWorld
 }
 
 let clientWorld: World = { players: [], serverTick: 0 }
-let playerId = 0
 
 let unackedInputs: { [tickId: number]: PlayerInput } = {}
 export function clientStep(world: World, playerId: number, inputs: PlayerInput): World {
-  world.players[playerId].up = inputs.up // override the
-  world.players[playerId].left = inputs.left // override the
-  world.players[playerId].right = inputs.right // override the
-  return stepWorld(world)
+  return stepPlayer(world, playerId, [inputs])
+  // return stepWorld(world)
 }
 
-export function localClientStep(world: World, playerId: number): World {
+function getPlayerId(): number {
+  const playerId = window.serverParty.players.findIndex(player => player.peerId === window.peerId)
+  return playerId
+}
+export function localClientStep(world: World): World {
   clientTick++
+  const playerId = getPlayerId()
   unackedInputs[clientTick] = getPressedKeys()
-  clientWorld = clientStep(world, playerId, unackedInputs[clientTick])
+  clientWorld = world
+  // clientWorld = clientStep(world, playerId, unackedInputs[clientTick])
   return clientWorld
 }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {
-  const inputIdsToTake = _.takeRight(_.sortBy(Object.keys(unackedInputs)), 10)
-  const inputs = _.pick(unackedInputs, inputIdsToTake)
-  return { type: 'CLIENT_TICK', clientTick, serverTick, inputs }
+  const inputIdsToTake = _.takeRight(
+    Object.keys(unackedInputs)
+      .map(Number)
+      .sort((a, b) => a - b),
+    5
+  )
+  unackedInputs = _.pick(unackedInputs, inputIdsToTake)
+  return { type: 'CLIENT_TICK', clientTick, serverTick, inputs: unackedInputs }
 }
 
 let clientTick = 0
 let ackedClientTick = -1
 let serverTick = -1
-let serverTickAtLastClientAck = -1
 
 setInterval(() => {
   if (isConnectedPeer(window.peer)) {
     const tick = getClientTick()
-    if (clientTick != ackedClientTick || serverTick != serverTickAtLastClientAck) {
-      console.log(`sending out tick: ${JSON.stringify(tick)}`)
+    if (clientTick != ackedClientTick) {
       window.peer.send(JSON.stringify(getClientTick()))
     }
   }
 }, 16)
 
 function isConnectedPeer(peer: any) {
-  return peer && (peer as any)._channel.readyState === 'open'
+  return peer && (peer as any)._channel && (peer as any)._channel.readyState === 'open'
 }

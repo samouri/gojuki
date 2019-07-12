@@ -5,15 +5,9 @@ import withReactContent from 'sweetalert2-react-content'
 import './style.css'
 import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
 import { Message, Party, joinParty, Player } from '../server/state'
-import { World, getDefaultPlayer, stepWorld, getGameDimensions } from '../server/game'
+import { World, getGameDimensions } from '../server/game'
 import { Instance } from 'simple-peer'
-import {
-  getPressedKeys,
-  clientStep,
-  receiveServerWorld,
-  localClientStep,
-  getClientTick
-} from './game'
+import { localClientStep, handleServerTick } from './game'
 import { drawPlayer, drawArena } from './draw'
 
 declare global {
@@ -21,8 +15,8 @@ declare global {
     peer: Instance
     peerId: string
     SimplePeer: any
-    serverGameState: World
     appSetState: any
+    serverParty: Party
     serverWorld: World
     clientWorld: World
   }
@@ -154,21 +148,19 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
   gameLoop = (time: number) => {
     const dt = time - this.lastTime
     this.lastTime = time
-    if (!this.canvas || !window.clientWorld || !window.serverGameState.players) {
+    if (!this.canvas || !window.serverWorld) {
       return
     }
 
     let players: Array<Player> = this.props.players
-    let world = window.clientWorld
+    let world = window.serverWorld
 
     // update model
-    const playerId = players.findIndex(player => player.peerId === window.peerId)
-    world = localClientStep(world, playerId)
+    world = localClientStep(world)
 
     // render
     let ctx = this.canvas.getContext('2d')
     drawArena(ctx, players)
-    console.log(players)
     world.players.forEach(p => drawPlayer(ctx, p))
     requestAnimationFrame(this.gameLoop)
   }
@@ -289,15 +281,7 @@ function handleMessage(message: Message) {
   if (message.type === 'LOG') {
     console.log(message.message)
   } else if (message.type === 'SERVER_TICK') {
-    console.log(`Receiving message: ${JSON.stringify(message)}`)
-    receiveServerWorld(message.world, {
-      clientTick: message.clientTick,
-      serverTick: message.serverTick
-    })
-
-    if (message.party) {
-      window.appSetState({ serverState: message.party, serverConnected: true })
-    }
+    handleServerTick(message)
   }
 }
 

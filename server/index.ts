@@ -8,7 +8,7 @@ const wrtc: any = require('wrtc')
 
 const app = express()
 
-type Peers = { [id: string]: Peer.Instance }
+export type Peers = { [id: string]: Peer.Instance }
 let peers: Peers = {}
 app.use(bodyParser.json())
 app.use(
@@ -56,7 +56,6 @@ app.get('/signal', (req, res) => {
     res.send(JSON.stringify({ id, signal: data }))
   })
   peer.on('data', data => {
-    console.log(`receivingMessage: ${data}`)
     handleMessage(JSON.parse(data), id)
   })
   peer.on('error', err => {
@@ -77,10 +76,14 @@ app.listen(3000)
 
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
-  for (const [peerId, tickMessage] of Object.entries(getTickData())) {
+  const connectedPeers: Array<string> = Object.keys(peers).filter(peerId =>
+    isConnectedPeer(peers[peerId])
+  )
+  for (const [peerId, tickMessage] of Object.entries(getTickData(connectedPeers))) {
     // todo: is it okay that getTickData also increases the serverTick?
     const peer = peers[peerId]
-    if (isConnectedPeer(peer) && (tickMessage.party || tickMessage.world)) {
+    if (isConnectedPeer(peer)) {
+      // console.log(`sending out message: ${JSON.stringify(tickMessage)}`)
       peer.send(JSON.stringify(tickMessage))
     }
   }
