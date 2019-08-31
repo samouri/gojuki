@@ -105,9 +105,9 @@ function handleJoinParty(peerId: string, playerName: string) {
       players: [{ peerId, playerName }],
       serverTick,
     }
-    partyIndex[peerId] = partyId
-    console.log(partyId)
   }
+  partyIndex[peerId] = partyId
+  console.log(`joining: ${partyId}`)
 }
 
 export function handleMessage(message: Message, peerId: string) {
@@ -181,15 +181,15 @@ function getGameDataToSend(peerId: string, partyId: string): { world: World; par
   }
 
   const { ackedServerTick } = state.clientTicks[peerId]
-
-  return {
-    party:
-      ackedServerTick < _.get(state.parties, [partyId, "serverTick"])
-        ? state.parties[partyId]
-        : null,
-    world:
-      ackedServerTick < _.get(state.games, [partyId, "serverTick"]) ? state.games[partyId] : null,
+  const ret: any = { world: null, party: null }
+  if (ackedServerTick <= _.get(state.parties, [partyId, "serverTick"])) {
+    ret.party = state.parties[partyId]
   }
+
+  if (ackedServerTick <= _.get(state.games, [partyId, "serverTick"])) {
+    ret.world = state.parties[partyId]
+  }
+  return ret
 }
 
 function getHeartbeatDataToSend(peerId: string) {
