@@ -6,7 +6,7 @@
     "ui": "parcel index.html"
   },
   "keywords": [],
-  "author": "",
+  "author": "@samouri, @zachlite",
   "license": "MIT",
   "devDependencies": {
     "@types/reach__router": "^1.2.4",
