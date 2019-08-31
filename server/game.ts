@@ -2,7 +2,7 @@
  * All of the game state that is shared between servers and all clients.
  * This means only the model (state).
  */
-import * as _ from 'lodash'
+import * as _ from "lodash"
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -23,36 +23,36 @@ export type GamePlayer = {
 const baseSize = 70
 export const PLAYER_CONFIG: { [id: number]: any } = {
   1: {
-    color: '#E93F3F',
+    color: "#E93F3F",
     startPosition: { x: baseSize / 2, y: baseSize / 2, rotation: Math.PI },
-    basePosition: { x: 0, y: 0 }
+    basePosition: { x: 0, y: 0 },
   },
   2: {
-    color: '#38D183',
+    color: "#38D183",
     startPosition: {
       x: getGameDimensions().width - baseSize / 2.0,
       y: baseSize / 2,
-      rotation: Math.PI
+      rotation: Math.PI,
     },
-    basePosition: { x: getGameDimensions().width - baseSize, y: 0 }
+    basePosition: { x: getGameDimensions().width - baseSize, y: 0 },
   },
   3: {
-    color: '#3FD3E9',
+    color: "#3FD3E9",
     startPosition: { x: baseSize / 2.0, y: getGameDimensions().height - baseSize / 2, rotation: 0 },
-    basePosition: { x: 0, y: getGameDimensions().height - baseSize }
+    basePosition: { x: 0, y: getGameDimensions().height - baseSize },
   },
   4: {
-    color: '#E93FDB',
+    color: "#E93FDB",
     startPosition: {
       x: getGameDimensions().width - baseSize / 2.0,
       y: getGameDimensions().height - baseSize / 2,
-      rotation: 0
+      rotation: 0,
     },
     basePosition: {
       x: getGameDimensions().width - baseSize,
-      y: getGameDimensions().height - baseSize
-    }
-  }
+      y: getGameDimensions().height - baseSize,
+    },
+  },
 }
 
 export function getDefaultPlayer(playerNum: number): GamePlayer {
@@ -63,7 +63,7 @@ export function getDefaultPlayer(playerNum: number): GamePlayer {
     rotation: PLAYER_CONFIG[playerNum].startPosition.rotation,
     friction: 0.9,
     turnSpeed: 0.1,
-    acceleration: 0.2
+    acceleration: 0.2,
   }
 }
 
