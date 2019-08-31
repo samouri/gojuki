@@ -37,9 +37,13 @@ class App extends React.Component {
   componentDidUpdate(_prevProps: any, prevState: { serverState: Party }) {
     const { players, status } = this.state.serverState
     if (players !== prevState.serverState.players) {
-      if (players.length > 0 && status === "NOT_STARTED") {
+      if (
+        players.length > 0 &&
+        status === "NOT_STARTED" &&
+        !window.location.pathname.includes("party")
+      ) {
         navigate("/party")
-      } else if (status === "PLAYING") {
+      } else if (status === "PLAYING" && !window.location.pathname.includes("game")) {
         navigate("/game")
       }
     }

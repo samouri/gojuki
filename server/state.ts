@@ -15,21 +15,33 @@ export type SERVER_TICK_MESSAGE = {
   clientTick: number
 }
 
+export type HEARTBEAT_MESSAGE = {
+  type: "CLIENT_HEARTBEAT"
+  serverTick: number
+  clientTick: number
+}
+
 export type CLIENT_TICK_MESSAGE = {
   type: "CLIENT_TICK"
   inputs: { [tickId: number]: PlayerInput }
   serverTick: number
   clientTick: number
 }
+
 export type Message =
   | LOG_MESSAGE
   | JOIN_PARTY_MESSAGE
   | PLAYER_INPUTS
   | SERVER_TICK_MESSAGE
   | CLIENT_TICK_MESSAGE
+  | HEARTBEAT_MESSAGE
 
 export function log(message: string): LOG_MESSAGE {
   return { type: "LOG", message }
+}
+
+export function heartbeat(clientTick: number, serverTick: number): HEARTBEAT_MESSAGE {
+  return { type: "CLIENT_HEARTBEAT", serverTick, clientTick }
 }
 
 export function joinParty(peerId: string, playerName: string): JOIN_PARTY_MESSAGE {
@@ -103,6 +115,10 @@ export function handleMessage(message: Message, peerId: string) {
     handleJoinParty(peerId, message.playerName)
   } else if (message.type === "LOG") {
     console.log(message.message)
+  } else if (message.type === "CLIENT_HEARTBEAT") {
+    const ticks = state.clientTicks[peerId]
+    ticks.clientTick = Math.max(ticks.clientTick, message.clientTick)
+    ticks.ackedServerTick = Math.max(ticks.ackedServerTick, message.serverTick)
   } else if (message.type === "CLIENT_TICK") {
     if (message.clientTick <= state.clientTicks[peerId].clientTick) {
       console.log(`dupe or outdated message because of outdated clientTick: ${message.clientTick}`)
@@ -110,7 +126,7 @@ export function handleMessage(message: Message, peerId: string) {
 
     const partyId = getPartyId(peerId)
     if (!partyId) {
-      console.log(`no game started yet, why is CLIENT_TICK being called?`)
+      console.log(`SHOULD NOT BE RECEIVING CLIENT_TICK BEFORE GAME START`)
       return
     }
 
@@ -191,6 +207,7 @@ export function getTickData(peers: Array<string>): { [id: string]: SERVER_TICK_M
     }
     return tickData
   })
+  console.log(tickData)
 
   return tickData
 }

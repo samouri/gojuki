@@ -3,7 +3,7 @@
  * This includes: canvas details, event handlers, and rendering.
  */
 import { PlayerInput, World, stepPlayer } from "../server/game"
-import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE } from "../server/state"
+import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, heartbeat } from "../server/state"
 import * as _ from "lodash"
 
 const pressedKeys = new Set()
@@ -24,10 +24,11 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
   /* Update global ticks*/
   serverTick = Math.max(serverTick, message.serverTick)
   ackedClientTick = Math.max(ackedClientTick, message.clientTick)
+  dirtyServer = true
 
   /* Update states*/
   const shouldUpdateParty =
-    !window.serverParty ||
+    (!window.serverParty && message.party) ||
     (message.party && message.party.serverTick >= window.serverParty.serverTick)
   if (shouldUpdateParty) {
     window.appSetState({ serverState: message.party, serverConnected: true })
@@ -35,7 +36,7 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
   }
 
   const shouldUpdateWorld =
-    !window.serverWorld ||
+    (!window.serverWorld && message.world) ||
     (message.world && message.world.serverTick >= window.serverWorld.serverTick)
   if (shouldUpdateWorld) {
     receiveServerWorld(message.world)
@@ -83,15 +84,19 @@ export function getClientTick(): CLIENT_TICK_MESSAGE {
   return { type: "CLIENT_TICK", clientTick, serverTick, inputs: unackedInputs }
 }
 
-let clientTick = 0
+let clientTick = -1
 let ackedClientTick = -1
 let serverTick = -1
+let dirtyServer = true
 
 setInterval(() => {
   if (isConnectedPeer(window.peer)) {
     if (clientTick > ackedClientTick) {
       window.peer.send(JSON.stringify(getClientTick()))
+    } else if (dirtyServer) {
+      window.peer.send(JSON.stringify(heartbeat(clientTick, serverTick)))
     }
+    dirtyServer = false
   }
 }, 16)
 
