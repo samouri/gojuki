@@ -18,10 +18,7 @@ app.use(
 )
 
 app.use(express.static(path.resolve(__dirname, "..", "dist")))
-
-app.get("/", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "..", "dist/index.html"))
-})
+app.get("/", (req, res) => res.sendFile(path.resolve(__dirname, "..", "dist/index.html")))
 
 app.get("/signal", async (req, res) => {
   state.initTicks(req.sessionID)
@@ -30,7 +27,6 @@ app.get("/signal", async (req, res) => {
 })
 
 app.post("/signal", (req, res) => {
-  console.log(`signal recieved back from client: ${req.sessionID}`)
   peers.signalPeer(req.sessionID, req.body.signal)
   res.send(`success`)
 })
