@@ -106,6 +106,7 @@ function handleJoinParty(peerId: string, playerName: string) {
       serverTick,
     }
     partyIndex[peerId] = partyId
+    console.log(partyId)
   }
 }
 
@@ -207,7 +208,6 @@ export function getTickData(peers: Array<string>): { [id: string]: SERVER_TICK_M
     }
     return tickData
   })
-  console.log(tickData)
 
   return tickData
 }
