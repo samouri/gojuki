@@ -1,5 +1,6 @@
 import * as _ from "lodash"
 import { PlayerInput, World, getDefaultPlayer, stepPlayer } from "./game"
+import { jitter } from "./peers"
 const maxPartySize = 2
 let serverTick = 0
 
@@ -23,7 +24,7 @@ export type HEARTBEAT_MESSAGE = {
 
 export type CLIENT_TICK_MESSAGE = {
   type: "CLIENT_TICK"
-  inputs: { [tickId: number]: PlayerInput }
+  inputs: Array<[number, PlayerInput]>
   serverTick: number
   clientTick: number
 }
@@ -97,6 +98,15 @@ function handleJoinParty(peerId: string, playerName: string) {
     party.serverTick = serverTick
     if (party.players.length === maxPartySize) {
       party.status = "PLAYING"
+      state.games[partyId] = {
+        players: [
+          getDefaultPlayer(1),
+          getDefaultPlayer(2),
+          getDefaultPlayer(3),
+          getDefaultPlayer(4),
+        ],
+        serverTick,
+      }
     }
   } else {
     partyId = String(nextParty++)
@@ -111,7 +121,6 @@ function handleJoinParty(peerId: string, playerName: string) {
 }
 
 export function handleMessage(message: Message, peerId: string) {
-  // console.log(`handling message: ${JSON.stringify(message)}`)
   if (message.type === "JOIN_PARTY") {
     handleJoinParty(peerId, message.playerName)
   } else if (message.type === "LOG") {
@@ -135,14 +144,12 @@ export function handleMessage(message: Message, peerId: string) {
     const clientTick = message.clientTick
     state.clientTicks[peerId] = { clientTick, ackedServerTick: message.serverTick }
 
-    const inputsTicks: Array<number> = Object.keys(message.inputs)
-      .map(Number)
-      .sort((a, b) => a - b) // ascending order
-      .filter(tickId => tickId > prevClientTick)
-
     // This is awful anti-cheat logic. Right now clients can make 4 moves every move.
     // TODO: use bursty api logic. hold a counter from 0 that increments up by one every 16ms w/ a low max. that num represents how many moves a client can make.
-    const inputs: Array<PlayerInput> = _.takeRight(inputsTicks, 4).map(tId => message.inputs[tId]) // if someone is more than 5 ticks behind...too bad for them, we'll drop their inputs and they can rubberband
+    let inputs: Array<PlayerInput> = message.inputs
+      .filter(elem => elem[0] > prevClientTick)
+      .map(elem => elem[1])
+    inputs = _.takeRight(inputs, 5)
 
     // TODO: move off index this sucks
     let playerId = state.parties[partyId].players.findIndex(player => player.peerId === peerId)
@@ -151,7 +158,7 @@ export function handleMessage(message: Message, peerId: string) {
       return
     }
 
-    state.games[partyId] = stepPlayer(state.games[partyId], playerId, inputs)
+    stepPlayer(state.games[partyId], playerId, inputs)
     state.games[partyId].serverTick = serverTick
   }
 }
@@ -187,7 +194,7 @@ function getGameDataToSend(peerId: string, partyId: string): { world: World; par
   }
 
   if (ackedServerTick <= _.get(state.games, [partyId, "serverTick"])) {
-    ret.world = state.parties[partyId]
+    ret.world = state.games[partyId]
   }
   return ret
 }
@@ -200,7 +207,7 @@ export function getTickData(peers: Array<string>): { [id: string]: SERVER_TICK_M
   serverTick++
 
   const tickData: { [id: string]: SERVER_TICK_MESSAGE } = {}
-  peers.forEach(peerId => {
+  peers.forEach(async peerId => {
     tickData[peerId] = {
       type: "SERVER_TICK",
       ...getHeartbeatDataToSend(peerId),

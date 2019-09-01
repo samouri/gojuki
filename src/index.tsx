@@ -157,10 +157,9 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
     }
 
     let players: Array<Player> = this.props.players
-    let world = window.serverWorld
 
     // update model
-    world = localClientStep(world)
+    let world = localClientStep()
 
     // render
     let ctx = this.canvas.getContext("2d")
