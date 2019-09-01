@@ -44,29 +44,25 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
   }
 }
 
-let clientWorld: World = { players: [], serverTick: 0 }
+let clientWorld: World = { players: {}, serverTick: 0 }
 
 // 1. Figure out which inputs can be discarded
 // 2. Update the world with all of the new state.
 export function receiveServerWorld(world: World) {
-  console.log("recieving world!! ", world.serverTick)
+  // console.log("recieving world!! ", world.serverTick)
   unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
   clientWorld = _.cloneDeep(world)
-  stepPlayer(clientWorld, getPlayerId(), unackedInputs.map(elem => elem[1]))
+  stepPlayer(clientWorld, window.peerId, unackedInputs.map(elem => elem[1]))
 }
 
 let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
 
-function getPlayerId(): number {
-  const playerId = window.serverParty.players.findIndex(player => player.peerId === window.peerId)
-  return playerId
-}
 export function localClientStep() {
   clientTick++
   const keys = getPressedKeys()
   unackedInputs.push([clientTick, keys])
   unackedInputs = _.takeRight(unackedInputs, 5)
-  stepPlayer(clientWorld, getPlayerId(), [keys])
+  stepPlayer(clientWorld, window.peerId, [keys])
   return clientWorld
 }
 

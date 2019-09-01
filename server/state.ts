@@ -99,12 +99,12 @@ function handleJoinParty(peerId: string, playerName: string) {
     if (party.players.length === maxPartySize) {
       party.status = "PLAYING"
       state.games[partyId] = {
-        players: [
-          getDefaultPlayer(1),
-          getDefaultPlayer(2),
-          getDefaultPlayer(3),
-          getDefaultPlayer(4),
-        ],
+        players: {
+          [party.players[0].peerId]: getDefaultPlayer(1, party.players[0].playerName),
+          [party.players[1].peerId]: getDefaultPlayer(2, party.players[1].playerName),
+          ["gibbersih"]: getDefaultPlayer(3, "fakePlayer3"),
+          ["gibberish2"]: getDefaultPlayer(4, "fakePlayer4"),
+        },
         serverTick,
       }
     }
@@ -151,14 +151,7 @@ export function handleMessage(message: Message, peerId: string) {
       .map(elem => elem[1])
     inputs = _.takeRight(inputs, 5)
 
-    // TODO: move off index this sucks
-    let playerId = state.parties[partyId].players.findIndex(player => player.peerId === peerId)
-    if (playerId === -1) {
-      console.error(`playerId is -1, could not find player for peer ${peerId}`)
-      return
-    }
-
-    stepPlayer(state.games[partyId], playerId, inputs)
+    stepPlayer(state.games[partyId], peerId, inputs)
     state.games[partyId].serverTick = serverTick
   }
 }

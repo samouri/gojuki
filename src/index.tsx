@@ -8,7 +8,7 @@ import { Message, Party, joinParty, Player } from "../server/state"
 import { World, getGameDimensions } from "../server/game"
 import { Instance } from "simple-peer"
 import { localClientStep, handleServerTick } from "./game"
-import { drawPlayer, drawArena } from "./draw"
+import { drawPlayer, drawArena, drawWorld } from "./draw"
 
 declare global {
   interface Window {
@@ -156,15 +156,12 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
       return
     }
 
-    let players: Array<Player> = this.props.players
-
     // update model
     let world = localClientStep()
 
     // render
     let ctx = this.canvas.getContext("2d")
-    drawArena(ctx, players)
-    world.players.forEach(p => drawPlayer(ctx, p))
+    drawWorld(ctx, world)
     requestAnimationFrame(this.gameLoop)
   }
 

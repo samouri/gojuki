@@ -10,13 +10,14 @@ export function getGameDimensions() {
 }
 
 export type World = {
-  players: Array<GamePlayer>
+  players: { [id: string]: GamePlayer }
   serverTick: number
 }
 
 export type PlayerInput = { left: boolean; right: boolean; up: boolean }
 export type GamePlayer = {
-  id: string
+  playerNumber: 1 | 2 | 3 | 4
+  playerName: string
   x: number
   y: number
   v: number
@@ -61,9 +62,10 @@ export const PLAYER_CONFIG: { [id: number]: any } = {
   },
 }
 
-export function getDefaultPlayer(playerNum: number): GamePlayer {
+export function getDefaultPlayer(playerNum: 1 | 2 | 3 | 4, playerName: string): GamePlayer {
   return {
-    id: "",
+    playerNumber: playerNum,
+    playerName,
     x: PLAYER_CONFIG[playerNum].startPosition.x,
     y: PLAYER_CONFIG[playerNum].startPosition.y,
     v: 0,
@@ -74,7 +76,7 @@ export function getDefaultPlayer(playerNum: number): GamePlayer {
   }
 }
 
-export function stepPlayer(world: World, playerId: number, inputs: Array<PlayerInput>) {
+export function stepPlayer(world: World, playerId: string, inputs: Array<PlayerInput>) {
   const gameDim = getGameDimensions()
   inputs = [...inputs]
 
