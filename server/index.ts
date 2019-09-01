@@ -5,6 +5,7 @@ import * as bodyParser from "body-parser"
 import * as path from "path"
 import * as peers from "./peers"
 import * as state from "./state"
+import { jitter } from "./peers"
 const app = express()
 
 app.use(bodyParser.json())
@@ -18,8 +19,6 @@ app.use(
 )
 
 app.use(express.static(path.resolve(__dirname, "..", "dist")))
-app.get("/", (req, res) => res.sendFile(path.resolve(__dirname, "..", "dist/index.html")))
-
 app.get("/signal", async (req, res) => {
   state.initTicks(req.sessionID)
   const signal = await peers.registerPeer(req.sessionID, state.handleMessage)
@@ -31,6 +30,8 @@ app.post("/signal", (req, res) => {
   res.send(`success`)
 })
 
+app.get("/*", (req, res) => res.sendFile(path.resolve(__dirname, "..", "dist/index.html")))
+
 app.listen(3000)
 
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
@@ -39,6 +40,7 @@ function sendGameUpdates() {
   for (const [peerId, tickMessage] of Object.entries(state.getTickData(Array.from(piers.keys())))) {
     // todo: is it okay that getTickData also increases the serverTick?
     const peer = piers.get(peerId)
+    // jitter(100).then(() => peer.send(JSON.stringify(tickMessage)))
     peer.send(JSON.stringify(tickMessage))
   }
 }

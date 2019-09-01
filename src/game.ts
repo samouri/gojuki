@@ -40,47 +40,37 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
     (message.world && message.world.serverTick >= window.serverWorld.serverTick)
   if (shouldUpdateWorld) {
     receiveServerWorld(message.world)
+    window.serverWorld = message.world
   }
 }
+
+let clientWorld: World = { players: [], serverTick: 0 }
 
 // 1. Figure out which inputs can be discarded
 // 2. Update the world with all of the new state.
 export function receiveServerWorld(world: World) {
   console.log("recieving world!! ", world.serverTick)
-  window.serverWorld = world
-  const unackedTickIds: Array<number> = Object.keys(unackedInputs)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .filter(tId => tId > ackedClientTick)
-  unackedInputs = _.pick(unackedInputs, _.takeRight(unackedTickIds, 5))
-  window.clientWorld = stepPlayer(
-    world,
-    getPlayerId(),
-    unackedTickIds.map(tId => unackedInputs[tId]),
-  )
+  unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
+  clientWorld = _.cloneDeep(world)
+  stepPlayer(clientWorld, getPlayerId(), unackedInputs.map(elem => elem[1]))
 }
 
-let clientWorld: World = { players: [], serverTick: 0 }
-
-let unackedInputs: { [tickId: number]: PlayerInput } = {}
+let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
 
 function getPlayerId(): number {
   const playerId = window.serverParty.players.findIndex(player => player.peerId === window.peerId)
   return playerId
 }
-export function localClientStep(world: World): World {
+export function localClientStep() {
   clientTick++
-  unackedInputs[clientTick] = getPressedKeys()
-  // const playerId = getPlayerId()
-  // clientWorld = clientStep(world, playerId, unackedInputs[clientTick])
-  return world
+  const keys = getPressedKeys()
+  unackedInputs.push([clientTick, keys])
+  unackedInputs = _.takeRight(unackedInputs, 5)
+  stepPlayer(clientWorld, getPlayerId(), [keys])
+  return clientWorld
 }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {
-  const inputIds = Object.keys(unackedInputs)
-    .map(Number)
-    .sort()
-  unackedInputs = _.pick(unackedInputs, _.takeRight(inputIds, 5))
   return { type: "CLIENT_TICK", clientTick, serverTick, inputs: unackedInputs }
 }
 

@@ -9,8 +9,14 @@ export function getGameDimensions() {
   return GAME_DIMENSIONS
 }
 
+export type World = {
+  players: Array<GamePlayer>
+  serverTick: number
+}
+
 export type PlayerInput = { left: boolean; right: boolean; up: boolean }
 export type GamePlayer = {
+  id: string
   x: number
   y: number
   v: number
@@ -57,6 +63,7 @@ export const PLAYER_CONFIG: { [id: number]: any } = {
 
 export function getDefaultPlayer(playerNum: number): GamePlayer {
   return {
+    id: "",
     x: PLAYER_CONFIG[playerNum].startPosition.x,
     y: PLAYER_CONFIG[playerNum].startPosition.y,
     v: 0,
@@ -67,45 +74,13 @@ export function getDefaultPlayer(playerNum: number): GamePlayer {
   }
 }
 
-export type World = {
-  players: Array<GamePlayer>
-  serverTick: number
-}
-
-// export function stepWorld(world: World): World {
-//   const gameDim = getGameDimensions()
-//   const newPlayers = []
-//   for (const player of world.players) {
-//     const p = { ...player }
-//     if (p.up) {
-//       p.v += p.acceleration
-//     }
-//     p.v *= p.friction
-//     p.x = p.x + Math.sin(p.rotation) * p.v
-//     p.y = p.y + Math.cos(p.rotation) * -1 * p.v
-
-//     if (p.left) {
-//       p.rotation -= p.turnSpeed
-//     } else if (p.right) {
-//       p.rotation += p.turnSpeed
-//     }
-
-//     p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
-//     p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
-//     newPlayers.push(p)
-//   }
-
-//   return { ...world, players: newPlayers }
-// }
-
-export function stepPlayer(world: World, playerId: number, inputs: Array<PlayerInput>): World {
+export function stepPlayer(world: World, playerId: number, inputs: Array<PlayerInput>) {
   const gameDim = getGameDimensions()
-  const newPlayers: Array<GamePlayer> = [...world.players]
   inputs = [...inputs]
 
-  const p = { ...world.players[playerId] }
+  const p = world.players[playerId]
   while (!_.isEmpty(inputs)) {
-    const input = inputs.pop()
+    const input = inputs.shift()
     if (input.up) {
       p.v += p.acceleration
     }
@@ -122,8 +97,4 @@ export function stepPlayer(world: World, playerId: number, inputs: Array<PlayerI
     p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
     p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
   }
-
-  newPlayers[playerId] = p
-
-  return { ...world, players: newPlayers }
 }
