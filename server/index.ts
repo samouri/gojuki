@@ -1,11 +1,9 @@
 import * as express from "express"
-import * as Peer from "simple-peer"
 import * as session from "express-session"
 import * as bodyParser from "body-parser"
 import * as path from "path"
 import * as peers from "./peers"
 import * as state from "./state"
-import { jitter } from "./peers"
 const app = express()
 
 app.use(bodyParser.json())
