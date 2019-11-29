@@ -196,18 +196,14 @@ function getHeartbeatDataToSend(peerId: string) {
   return { serverTick, clientTick: state.clientTicks[peerId].clientTick }
 }
 
-export function getTickData(peers: Array<string>): { [id: string]: SERVER_TICK_MESSAGE } {
-  serverTick++
-
-  const tickData: { [id: string]: SERVER_TICK_MESSAGE } = {}
-  peers.forEach(async peerId => {
-    tickData[peerId] = {
-      type: "SERVER_TICK",
+export function getTickData(peerId: string): SERVER_TICK_MESSAGE {
+  return {
+    type: "SERVER_TICK",
       ...getHeartbeatDataToSend(peerId),
-      ...getGameDataToSend(peerId, getPartyId(peerId)),
-    }
-    return tickData
-  })
+      ...getGameDataToSend(peerId, getPartyId(peerId)), 
+  }
+}
 
-  return tickData
+export function tick() {
+  serverTick++; 
 }
