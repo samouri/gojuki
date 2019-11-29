@@ -1,6 +1,10 @@
 import * as Peer from "simple-peer"
 const wrtc: any = require("wrtc")
 
+export interface Client {
+  send(data: string): void;
+}
+
 const peers: Map<string, Peer.Instance> = new Map()
 
 export function signalPeer(sessionId: string, signalData: string) {
@@ -46,23 +50,28 @@ export async function registerPeer(sessionId: string, messageHandler: Function):
   })
 }
 
-export function getPeers(): Map<string, Peer.Instance> {
-  const connectedPeers = Array.from(peers.entries()).filter(([_id, peer]) => isConnectedPeer(peer))
-  return new Map(connectedPeers)
+export function getClients(): Map<string, Client> {
+  deleteDisconnectedPeers()
+  return new Map(Array.from(peers.entries()).filter(([id_, peer]) => isConnectedPeer(peer)))
 }
 
 // ----------------------------------------------------------------------
 
 function deleteDisconnectedPeers() {
-  // Array.from(peers.keys()).forEach(id => {
-  //   if (!isConnectedPeer(peers.get(id))) {
-  //     peers.delete(id)
-  //   }
-  // })
+  for(const [id, peer] of peers) {
+    if (isDisconnectedPeer(peer)) { 
+      peers.delete(id)
+    }
+  }
 }
+function isDisconnectedPeer(peer: Peer.Instance) {
+  const readyState = peer && (peer as any)._channel.readyState;
+  return readyState !== "open" && readyState !== 'connecting'
 
+}
 function isConnectedPeer(peer: Peer.Instance) {
-  return peer && (peer as any)._channel.readyState === "open"
+  const readyState = peer && (peer as any)._channel.readyState;
+  return readyState === "open";
 }
 
 export async function jitter(n: number) {

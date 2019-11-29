@@ -34,10 +34,9 @@ app.listen(3000)
 
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
-  const piers = peers.getPeers()
-  for (const [peerId, tickMessage] of Object.entries(state.getTickData(Array.from(piers.keys())))) {
-    // todo: is it okay that getTickData also increases the serverTick?
-    const peer = piers.get(peerId)
-    peer.send(JSON.stringify(tickMessage))
+  state.tick(); 
+
+  for (const [clientId, client] of peers.getClients()) {
+    client.send(JSON.stringify(state.getTickData(clientId)))
   }
 }
