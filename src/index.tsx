@@ -8,7 +8,7 @@ import { Message, Party, joinParty, Player } from "../server/state"
 import { World, getGameDimensions } from "../server/game"
 import { Instance } from "simple-peer"
 import { localClientStep, handleServerTick } from "./game"
-import { drawPlayer, drawArena, drawWorld } from "./draw"
+import { drawWorld } from "./draw"
 
 declare global {
   interface Window {

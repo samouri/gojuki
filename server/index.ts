@@ -35,7 +35,6 @@ app.listen(3000)
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
   state.tick(); 
-
   for (const [clientId, client] of peers.getClients()) {
     client.send(JSON.stringify(state.getTickData(clientId)))
   }
