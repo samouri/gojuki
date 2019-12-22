@@ -12,7 +12,7 @@
   color: #f8e81c;
   text-decoration: none;
   padding: 20px;
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
 }
 .yellowBtn:hover,
 .infoButton:hover {
@@ -22,7 +22,7 @@
 
 .app__playbtn {
   font-size: 18;
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
   height: 50px;
   width: 200px;
   color: white;
@@ -39,7 +39,7 @@
 
 .app_loadingbtn {
   font-size: 18;
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
   height: 50px;
   width: 200px;
   color: white;
@@ -53,11 +53,11 @@
 }
 .about__header {
   color: #e91e63;
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
   font-size: 36px;
 }
 .about__content {
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
   line-height: 1.5;
 }
 
@@ -68,10 +68,10 @@
 .howToPlay__header {
   color: #e91e63;
   font-size: 36px;
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
 }
 .howToPlay__info {
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
   color: black;
   margin: 30px;
   line-height: 1.75;
@@ -79,7 +79,7 @@
 }
 
 button.sweetalert_confirm.swal2-confirm {
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
   background-color: #81c784;
   outline: 0;
   margin: 0;
@@ -98,5 +98,26 @@ button.sweetalert_confirm.swal2-confirm {
   list-style-type: none;
   padding: 0;
   font-size: 18;
-  font-family: 'Press Start 2P', cursive;
+  font-family: "Press Start 2P", cursive;
+}
+
+/* Upgrades Menu */
+.upgradesMenu {
+  font-family: "Press Start 2P", cursive;
+  line-height: 1.5;
+}
+.upgradesMenu p {
+  font-size: 10px;
+}
+.upgradesMenu button {
+  width: 50px;
+  height: 30px;
+  border: none;
+  outline: none;
+  background-color: #e91e63;
+  color: white;
+}
+.upgradesMenu button:hover {
+  cursor: pointer;
+  background-color: #a01444;
 }
