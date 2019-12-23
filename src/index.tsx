@@ -50,6 +50,12 @@ class App extends React.Component {
                 navigate('/game')
             }
         }
+
+        if (prevState.serverState.status !== status) {
+            if (status === 'UPGRADES') {
+                navigate('upgrades')
+            }
+        }
     }
 
     render() {
@@ -63,6 +69,7 @@ class App extends React.Component {
                     <PartyScreen
                         path="/party"
                         setPlayerName={(playerName: string) => {
+                            console.log(window.peer, window.peer.send)
                             window.peer.send(
                                 JSON.stringify(
                                     joinParty(window.peerId, playerName),

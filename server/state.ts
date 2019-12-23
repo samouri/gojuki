@@ -76,7 +76,7 @@ export type stateT = {
 
 export type Party = {
     players: Array<Player>
-    status: 'NOT_STARTED' | 'PLAYING' | 'FINISHED'
+    status: 'NOT_STARTED' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
     serverTick: number
 }
 
@@ -231,7 +231,7 @@ function getGameDataToSend(
         ret.world = state.games[partyId]
     }
     if (state.games[partyId]) {
-        stepWorld(state.games[partyId])
+        stepWorld(state.games[partyId], state.parties[partyId])
     }
 
     return ret

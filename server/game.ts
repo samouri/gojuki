@@ -3,6 +3,7 @@
  * This means only the model (state).
  */
 import * as _ from 'lodash'
+import { Party } from './state'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -12,7 +13,7 @@ export const HUD_HEIGHT = 40
 
 export type World = {
     players: { [id: string]: GamePlayer }
-    mode: 'GAMEPLAY' | 'UPGRADES'
+    mode: 'GAMEPLAY' | 'UPGRADES' | 'PARTY'
     round: number
     roundStartTime: number
     roundTimeLeft: number
@@ -107,7 +108,7 @@ export function getDefaultPlayer(
  *   - Time management
  *   - Round
  */
-export function stepWorld(world: World) {
+export function stepWorld(world: World, party: Party) {
     const dt = Date.now() - world.roundStartTime
     world.roundTimeLeft = 60 - dt / 1000
 
@@ -127,6 +128,7 @@ export function stepWorld(world: World) {
 
     if (world.roundTimeLeft <= 0) {
         world.mode = 'UPGRADES'
+        party.status = 'UPGRADES'
     }
 }
 
