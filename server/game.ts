@@ -8,6 +8,7 @@ const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
     return GAME_DIMENSIONS
 }
+export const HUD_HEIGHT = 40
 
 export type World = {
     players: { [id: string]: GamePlayer }
@@ -28,6 +29,7 @@ export type GamePlayer = {
 }
 
 const baseSize = 70
+
 export const PLAYER_CONFIG: { [id: number]: any } = {
     1: {
         color: '#E93F3F',
