@@ -52,7 +52,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     ctx.fillStyle = 'white'
     ctx.font = '12px Arial'
     ctx.fillText(
-        `Food remaining: ${5}/${player.powerups.carryLimit}      Sticky Goo: ${
+        `Food remaining: ${0}/${player.powerups.carryLimit}      Sticky Goo: ${
             player.powerups.goo
         }`,
         20,
