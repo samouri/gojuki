@@ -30,15 +30,16 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
 
 function drawHUD(ctx: CanvasRenderingContext2D, cfg: any) {
     ctx.save()
+
     ctx.fillStyle = '#460a20'
-    ctx.strokeStyle = '#460a20'
     ctx.fillRect(0, 0, getGameDimensions().width, HUD_HEIGHT)
-    // ctx.strokeStyle = 'black'
+
     ctx.fillStyle = 'white'
     ctx.font = '12px Arial'
     ctx.fillText(`Food remaining: ${5}/${10}      Sticky Goo: ${2}`, 20, 25)
     ctx.fillText(`ROUND: ${2}`, getGameDimensions().width / 2 - 50, 25)
     ctx.fillText(`Time left: ${51}`, getGameDimensions().width - 100, 25)
+
     ctx.restore()
 }
 
