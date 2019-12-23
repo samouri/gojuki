@@ -327,40 +327,47 @@ class UpgradesMenu extends React.Component<RouteComponentProps> {
                     style={{ color: 'white' }}
                 >
                     <h3>
-                        Food:{' '}
+                        Food:
                         <span style={{ color: '#e91e63', marginRight: 50 }}>
                             {food}
                         </span>
                     </h3>
                     <h3>
-                        Time to next round:{' '}
+                        Time to next round:
                         <span style={{ color: '#e91e63' }}>
-                            {timeToNextRound}
-                        </span>{' '}
+                            {' ' + timeToNextRound + ' '}
+                        </span>
                         seconds...
                     </h3>
                 </div>
-                <div
-                    className="upgradesMenu__items"
-                    style={{
-                        alignSelf: 'center',
-                    }}
-                >
+                <div className="upgradesMenu__items">
                     {powerups.map(powerup => (
                         <div
                             style={{
                                 flexDirection: 'column',
                                 backgroundColor: 'white',
                                 width: 230,
-                                height: 250,
+                                height: 270,
                                 margin: 20,
                                 padding: 30,
                             }}
                         >
-                            <h3>{powerup.name}</h3>
-                            <strong className="amount">{powerup.qty}</strong>
-                            <p>{powerup.description}</p>
-                            <div style={{ alignSelf: 'center' }}>
+                            <h3 style={{ height: 56 }}>{powerup.name}</h3>
+                            <strong
+                                style={{
+                                    fontSize: 26,
+                                    color: 'rgb(233, 30, 99)',
+                                }}
+                            >
+                                {powerup.qty}
+                            </strong>
+                            <p style={{ height: 45 }}>{powerup.description}</p>
+                            <div
+                                style={{
+                                    alignSelf: 'center',
+                                    marginTop: 'auto',
+                                }}
+                            >
                                 <button style={{ marginRight: 10 }}>-</button>
                                 <button>+</button>
                             </div>
