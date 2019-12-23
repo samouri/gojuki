@@ -12,7 +12,12 @@ export const HUD_HEIGHT = 40
 
 export type World = {
     players: { [id: string]: GamePlayer }
+    mode: 'GAMEPLAY' | 'UPGRADES'
+    round: number
+    roundStartTime: number
+    roundTimeLeft: number
     serverTick: number
+    food: Array<{ x: number; y: number; rotation: number }>
 }
 
 export type PlayerInput = { left: boolean; right: boolean; up: boolean }
@@ -26,6 +31,11 @@ export type GamePlayer = {
     turnSpeed: number
     acceleration: number
     rotation: number
+    powerups: {
+        speed: number
+        goo: number
+        carryLimit: number
+    }
 }
 
 const baseSize = 70
@@ -82,6 +92,41 @@ export function getDefaultPlayer(
         friction: 0.9,
         turnSpeed: 0.1,
         acceleration: 0.2,
+        powerups: {
+            speed: 0,
+            goo: 0,
+            carryLimit: 5,
+        },
+    }
+}
+
+/*
+ * Manages events that are directly controlled by time without any user input.
+ * For example:
+ *   - Food creation
+ *   - Time management
+ *   - Round
+ */
+export function stepWorld(world: World) {
+    const dt = Date.now() - world.roundStartTime
+    world.roundTimeLeft = 60 - dt / 1000
+
+    const secondsSinceRoundStart = dt / 1000
+    const MAX_FOOD = 40
+
+    if (
+        world.food.length < MAX_FOOD &&
+        secondsSinceRoundStart * 2 > world.food.length
+    ) {
+        world.food.push({
+            x: Math.floor(Math.random() * getGameDimensions().width),
+            y: Math.floor(Math.random() * getGameDimensions().height),
+            rotation: Math.floor(Math.random() * 360),
+        })
+    }
+
+    if (world.roundTimeLeft <= 0) {
+        world.mode = 'UPGRADES'
     }
 }
 

@@ -6,15 +6,21 @@ import {
     HUD_HEIGHT,
 } from '../server/game'
 
-import bugImg from '../img/bug/bug1.png'
+import bugImgSrc from '../img/bug/bug1.png'
+import foodImgSrc from '../img/food.png'
 import { Player } from '../server/state'
-const img = new Image()
-img.src = bugImg
+const bugImg = new Image()
+bugImg.src = bugImgSrc
+
+const foodImg = new Image()
+foodImg.src = foodImgSrc
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
     const players = Object.values(world.players)
-    drawHUD(ctx, {})
+    drawHUD(ctx, world)
     drawArena(ctx, players)
+
+    world.food.forEach(food => drawFood(ctx, food))
     players.forEach(p => drawPlayer(ctx, p))
 }
 
@@ -23,22 +29,45 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
     ctx.translate(player.x, player.y + HUD_HEIGHT)
     ctx.rotate(player.rotation)
     // ctx.drawImage(img, -10, -10, 20, 20)
-    drawTintedImage(img, -10, -10, 20, 20, ctx, fillStyle)
+    drawTintedImage(bugImg, -10, -10, 20, 20, ctx, fillStyle)
     ctx.rotate(-player.rotation)
     ctx.translate(-player.x, -(player.y + HUD_HEIGHT))
 }
 
-function drawHUD(ctx: CanvasRenderingContext2D, cfg: any) {
+function drawFood(
+    ctx: CanvasRenderingContext2D,
+    { x, y, rotation }: { x: number; y: number; rotation: number },
+) {
+    ctx.drawImage(foodImg, x, y + HUD_HEIGHT, 10, 10)
+}
+
+function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     ctx.save()
+
+    const player = world.players[window.peerId]
 
     ctx.fillStyle = '#460a20'
     ctx.fillRect(0, 0, getGameDimensions().width, HUD_HEIGHT)
 
     ctx.fillStyle = 'white'
     ctx.font = '12px Arial'
-    ctx.fillText(`Food remaining: ${5}/${10}      Sticky Goo: ${2}`, 20, 25)
-    ctx.fillText(`ROUND: ${2}`, getGameDimensions().width / 2 - 50, 25)
-    ctx.fillText(`Time left: ${51}`, getGameDimensions().width - 100, 25)
+    ctx.fillText(
+        `Food remaining: ${5}/${player.powerups.carryLimit}      Sticky Goo: ${
+            player.powerups.goo
+        }`,
+        20,
+        25,
+    )
+    ctx.fillText(
+        `ROUND: ${world.round}`,
+        getGameDimensions().width / 2 - 50,
+        25,
+    )
+    ctx.fillText(
+        `Time left: ${Math.floor(world.roundTimeLeft)}`,
+        getGameDimensions().width - 100,
+        25,
+    )
 
     ctx.restore()
 }

@@ -1,5 +1,11 @@
 import * as _ from 'lodash'
-import { PlayerInput, World, getDefaultPlayer, stepPlayer } from './game'
+import {
+    PlayerInput,
+    World,
+    getDefaultPlayer,
+    stepPlayer,
+    stepWorld,
+} from './game'
 import { jitter } from './peers'
 const maxPartySize = 2
 let serverTick = 0
@@ -124,7 +130,12 @@ function handleJoinParty(peerId: string, playerName: string) {
                     ['gibbersih']: getDefaultPlayer(3, 'fakePlayer3'),
                     ['gibberish2']: getDefaultPlayer(4, 'fakePlayer4'),
                 },
+                round: 1,
+                roundStartTime: Date.now(),
+                roundTimeLeft: 60,
+                mode: 'GAMEPLAY',
                 serverTick,
+                food: [],
             }
         }
     } else {
@@ -219,6 +230,10 @@ function getGameDataToSend(
     if (ackedServerTick <= _.get(state.games, [partyId, 'serverTick'])) {
         ret.world = state.games[partyId]
     }
+    if (state.games[partyId]) {
+        stepWorld(state.games[partyId])
+    }
+
     return ret
 }
 
