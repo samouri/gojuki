@@ -53,7 +53,15 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
     }
 }
 
-let clientWorld: World = { players: {}, serverTick: 0 }
+let clientWorld: World = {
+    players: {},
+    serverTick: 0,
+    mode: 'GAMEPLAY',
+    round: 1,
+    roundStartTime: Date.now(),
+    roundTimeLeft: 60,
+    food: [],
+}
 
 // 1. Figure out which inputs can be discarded
 // 2. Update the world with all of the new state.
