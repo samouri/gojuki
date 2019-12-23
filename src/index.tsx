@@ -5,7 +5,7 @@ import withReactContent from 'sweetalert2-react-content'
 import './style.css'
 import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
 import { Message, Party, joinParty, Player } from '../server/state'
-import { World, getGameDimensions } from '../server/game'
+import { World, getGameDimensions, HUD_HEIGHT } from '../server/game'
 import { Instance } from 'simple-peer'
 import { localClientStep, handleServerTick } from './game'
 import { drawWorld } from './draw'
@@ -216,8 +216,8 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
     }
 
     render() {
-        console.log('render')
-        const { width, height } = getGameDimensions()
+        let { width, height } = getGameDimensions()
+        height += HUD_HEIGHT
         return (
             <div
                 style={{
