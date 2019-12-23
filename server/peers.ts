@@ -49,7 +49,7 @@ export async function registerPeer(
             peers.delete(sessionId)
         })
         peer.on('destroy', () => {
-            console.log(`closing peer for session: ${sessionId}`)
+            console.log(`destroying peer for session: ${sessionId}`)
             peers.delete(sessionId)
         })
     })
