@@ -69,7 +69,6 @@ class App extends React.Component {
                     <PartyScreen
                         path="/party"
                         setPlayerName={(playerName: string) => {
-                            console.log(window.peer, window.peer.send)
                             window.peer.send(
                                 JSON.stringify(
                                     joinParty(window.peerId, playerName),

@@ -231,7 +231,7 @@ function getGameDataToSend(
         ret.world = state.games[partyId]
     }
     if (state.games[partyId]) {
-        stepWorld(state.games[partyId], state.parties[partyId])
+        stepWorld(state.games[partyId], state.parties[partyId], serverTick)
     }
 
     return ret
