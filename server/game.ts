@@ -3,7 +3,7 @@
  * This means only the model (state).
  */
 import * as _ from 'lodash'
-import { Party, Player } from './state'
+import { ClientState, Player } from './state'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -134,9 +134,10 @@ export function getDefaultPlayer(
  *   - Time management
  *   - Round
  */
-export function stepWorld(world: World, party: Party, serverTick: number) {
+export function stepWorld(party: ClientState, serverTick: number) {
+    const world: World = party.game
     const dt = Date.now() - world.roundStartTime
-    world.roundTimeLeft = 60 - dt / 1000
+    world.roundTimeLeft = Math.floor(60 - dt / 1000)
 
     const secondsSinceRoundStart = dt / 1000
     const MAX_FOOD = 40
@@ -155,10 +156,16 @@ export function stepWorld(world: World, party: Party, serverTick: number) {
     }
 
     if (world.roundTimeLeft <= 0 && party.status !== 'UPGRADES') {
-        world.mode = 'UPGRADES'
         party.status = 'UPGRADES'
         party.serverTick = serverTick
+        world.roundStartTime = Date.now()
     }
+
+    // if (world.roundTimeLeft <= 0 && party.status === 'UPGRADES') {
+    //     party.status = 'PLAYING'
+    //     party.serverTick = serverTick
+    //     world.roundStartTime = Date.now()
+    // }
 }
 
 export function stepPlayer(
@@ -232,4 +239,29 @@ function isTouching(rect1: Rectangle, rect2: Rectangle): boolean {
     }
 
     return true
+}
+
+export const powerups: {
+    [name: string]: {
+        cost: number
+        description: string
+        shortName: 'goo' | 'speed' | 'carryLimit'
+    }
+} = {
+    'Sticky Goo': {
+        cost: 5,
+        description:
+            'Drop sticky goo to slow your opponents down for 5 seconds.',
+        shortName: 'goo',
+    },
+    Speed: {
+        cost: 8,
+        description: 'Increase your top speed.',
+        shortName: 'speed',
+    },
+    'Food Carry Limit': {
+        cost: 10,
+        description: 'Increase the amount of food you can hold at once.',
+        shortName: 'carryLimit',
+    },
 }

@@ -4,6 +4,7 @@ import * as bodyParser from 'body-parser'
 import * as path from 'path'
 import * as peers from './peers'
 import * as state from './state'
+import { handleMessage, PLAYER_UPGRADE_MESSAGE } from './state'
 const app = express()
 
 app.use(bodyParser.json())
@@ -26,6 +27,10 @@ app.get('/signal', async (req, res) => {
 app.post('/signal', (req, res) => {
     peers.signalPeer(req.sessionID, req.body.signal)
     res.send(`success`)
+})
+
+app.post('/api/upgrades', (req, res) => {
+    res.json(handleMessage(req.body as PLAYER_UPGRADE_MESSAGE, req.sessionID))
 })
 
 app.get('/*', (req, res) =>

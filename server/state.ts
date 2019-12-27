@@ -5,6 +5,7 @@ import {
     getDefaultPlayer,
     stepPlayer,
     stepWorld,
+    powerups,
 } from './game'
 import { jitter } from './peers'
 const maxPartySize = 2
@@ -18,10 +19,14 @@ export type JOIN_PARTY_MESSAGE = {
     peerId: string
 }
 export type PLAYER_INPUTS = { type: 'CLIENT_INPUTS'; input: PlayerInput }
+export type PLAYER_UPGRADE_MESSAGE = {
+    type: 'PLAYER_UPGRADES'
+    powerup: 'Sticky Goo' | 'Speed' | 'Food Carry Limit'
+    delta: 1 | -1
+}
 export type SERVER_TICK_MESSAGE = {
     type: 'SERVER_TICK'
-    world: null | World
-    party: null | Party
+    party: null | ClientState
     serverTick: number
     clientTick: number
 }
@@ -44,6 +49,7 @@ export type Message =
     | JOIN_PARTY_MESSAGE
     | PLAYER_INPUTS
     | SERVER_TICK_MESSAGE
+    | PLAYER_UPGRADE_MESSAGE
     | CLIENT_TICK_MESSAGE
     | HEARTBEAT_MESSAGE
 
@@ -58,6 +64,17 @@ export function heartbeat(
     return { type: 'CLIENT_HEARTBEAT', serverTick, clientTick }
 }
 
+export function selectUpgrade(
+    powerup: 'Sticky Goo' | 'Speed' | 'Food Carry Limit',
+    delta: 1 | -1,
+): PLAYER_UPGRADE_MESSAGE {
+    return {
+        type: 'PLAYER_UPGRADES',
+        powerup,
+        delta,
+    }
+}
+
 export function joinParty(
     peerId: string,
     playerName: string,
@@ -67,17 +84,17 @@ export function joinParty(
 
 /* State Types*/
 export type stateT = {
-    parties: { [id: string]: Party }
-    games: { [id: string]: World }
+    parties: { [id: string]: ClientState }
     clientTicks: {
         [id: string]: { clientTick: number; ackedServerTick: number }
     }
 }
 
-export type Party = {
+export type ClientState = {
     players: Array<Player>
-    status: 'NOT_STARTED' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
+    status: 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
     serverTick: number
+    game: World | undefined
 }
 
 export type Player = {
@@ -89,7 +106,6 @@ export type Player = {
 
 let state: stateT = {
     parties: {},
-    games: {},
     clientTicks: {},
 }
 
@@ -117,7 +133,7 @@ function handleJoinParty(peerId: string, playerName: string) {
         party.serverTick = serverTick
         if (party.players.length === maxPartySize) {
             party.status = 'PLAYING'
-            state.games[partyId] = {
+            party.game = {
                 players: {
                     [party.players[0].peerId]: getDefaultPlayer(
                         1,
@@ -141,9 +157,10 @@ function handleJoinParty(peerId: string, playerName: string) {
     } else {
         partyId = String(nextParty++)
         state.parties[partyId] = {
-            status: 'NOT_STARTED',
+            status: 'LOBBY',
             players: [{ peerId, playerName }],
             serverTick,
+            game: undefined,
         }
     }
     partyIndex[peerId] = partyId
@@ -162,6 +179,19 @@ export function handleMessage(message: Message, peerId: string) {
             ticks.ackedServerTick,
             message.serverTick,
         )
+    } else if (message.type === 'PLAYER_UPGRADES') {
+        const partyId = getPartyId(peerId)
+        const player = state.parties[partyId].game.players[peerId]
+        const { cost, shortName } = powerups[message.powerup]
+
+        if (player.food >= cost && message.delta === 1) {
+            player.food -= cost
+            player.powerups[shortName]++
+        } else if (message.delta === -1 && player.powerups[shortName] > 0) {
+            player.food += cost
+            player.powerups[shortName]--
+        }
+        return player.powerups
     } else if (message.type === 'CLIENT_TICK') {
         if (message.clientTick <= state.clientTicks[peerId].clientTick) {
             console.log(
@@ -189,8 +219,9 @@ export function handleMessage(message: Message, peerId: string) {
             .map(elem => elem[1])
         inputs = _.takeRight(inputs, 5)
 
-        stepPlayer(state.games[partyId], peerId, inputs)
-        state.games[partyId].serverTick = serverTick
+        const game = state.parties[partyId].game
+        stepPlayer(game, peerId, inputs)
+        game.serverTick = serverTick
     }
 }
 
@@ -215,23 +246,21 @@ function getPartyId(peerId: string) {
 function getGameDataToSend(
     peerId: string,
     partyId: string,
-): { world: World; party: Party } {
+): { party: ClientState } {
     if (!peerId || !partyId) {
         // throw new Error(`peerId: ${peerId} hostId: ${hostId}`)
-        return { world: null, party: null }
+        return { party: null }
     }
 
     const { ackedServerTick } = state.clientTicks[peerId]
-    const ret: any = { world: null, party: null }
+    const ret: any = { party: null }
+
     if (ackedServerTick <= _.get(state.parties, [partyId, 'serverTick'])) {
         ret.party = state.parties[partyId]
     }
 
-    if (ackedServerTick <= _.get(state.games, [partyId, 'serverTick'])) {
-        ret.world = state.games[partyId]
-    }
-    if (state.games[partyId]) {
-        stepWorld(state.games[partyId], state.parties[partyId], serverTick)
+    if (state.parties[partyId].game) {
+        stepWorld(state.parties[partyId], serverTick)
     }
 
     return ret

@@ -4,8 +4,21 @@ import swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
 import './style.css'
 import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
-import { Message, Party, joinParty, Player } from '../server/state'
-import { World, getGameDimensions, HUD_HEIGHT } from '../server/game'
+import {
+    Message,
+    ClientState,
+    joinParty,
+    Player,
+    selectUpgrade,
+} from '../server/state'
+import {
+    World,
+    getGameDimensions,
+    HUD_HEIGHT,
+    powerups,
+    GamePlayer,
+    PLAYER_CONFIG,
+} from '../server/game'
 import { Instance } from 'simple-peer'
 import { localClientStep, handleServerTick } from './game'
 import { drawWorld } from './draw'
@@ -16,7 +29,7 @@ declare global {
         peerId: string
         SimplePeer: any
         appSetState: any
-        serverParty: Party
+        serverParty: ClientState
         serverWorld: World
         clientWorld: World
     }
@@ -26,34 +39,47 @@ const Swal = withReactContent(swal)
 
 const fontFamily = "'Press Start 2P', cursive"
 
+export type ReactState = {
+    serverConnected: boolean
+    players: Array<Player>
+    gameStatus: 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
+    upgradesScreen: {
+        secondsLeft: number
+        goo: number
+        speed: number
+        carryLimit: number
+        food: number
+    }
+}
 class App extends React.Component {
-    state: { serverState: Party; serverConnected: boolean } = {
-        serverState: { players: [], status: 'NOT_STARTED', serverTick: 0 },
+    state: ReactState = {
         serverConnected: false,
+        players: [],
+        gameStatus: 'NOT_STARTED',
+        upgradesScreen: {
+            secondsLeft: 0,
+            goo: 0,
+            carryLimit: 0,
+            food: 0,
+            speed: 0,
+        },
     }
     componentDidMount() {
         window.appSetState = (s: any) => this.setState(s)
     }
-    componentDidUpdate(_prevProps: any, prevState: { serverState: Party }) {
-        const { players, status } = this.state.serverState
-        if (players !== prevState.serverState.players) {
-            if (
-                players.length > 0 &&
-                status === 'NOT_STARTED' &&
-                !window.location.pathname.includes('party')
-            ) {
-                navigate('/party')
-            } else if (
-                status === 'PLAYING' &&
-                !window.location.pathname.includes('game')
-            ) {
-                navigate('/game')
-            }
-        }
+    componentDidUpdate(_prevProps: any, prevState: ReactState) {
+        const { gameStatus } = this.state
 
-        if (prevState.serverState.status !== status) {
-            if (status === 'UPGRADES') {
+        if (prevState.gameStatus !== gameStatus) {
+            // TODO: add one for homescreen
+            if (gameStatus === 'NOT_STARTED') {
+                navigate('/')
+            } else if (gameStatus === 'LOBBY') {
+                navigate('/party')
+            } else if (gameStatus === 'UPGRADES') {
                 navigate('upgrades')
+            } else if (gameStatus === 'PLAYING') {
+                navigate('/game')
             }
         }
     }
@@ -75,13 +101,10 @@ class App extends React.Component {
                                 ),
                             )
                         }}
-                        players={this.state.serverState.players}
+                        players={this.state.players}
                     />
-                    <UpgradesMenu path="/upgrades" />
-                    <GameScreen
-                        path="/game"
-                        players={this.state.serverState.players}
-                    />
+                    <UpgradesMenu path="/upgrades" clientState={this.state} />
+                    <GameScreen path="/game" players={this.state.players} />
                 </Router>
             </div>
         )
@@ -289,32 +312,11 @@ class About extends React.Component {
     }
 }
 
-class UpgradesMenu extends React.Component<RouteComponentProps> {
+class UpgradesMenu extends React.Component<
+    RouteComponentProps & { clientState: ReactState }
+> {
     render() {
-        const food = 100
-        const timeToNextRound = 34
-        const powerups = [
-            {
-                name: 'Sticky Goo',
-                qty: 0,
-                cost: 5,
-                description:
-                    'Drop sticky goo to slow your opponents down for 5 seconds.',
-            },
-            {
-                name: 'Speed',
-                qty: 0,
-                cost: 8,
-                description: 'Increase your top speed.',
-            },
-            {
-                name: 'Food Carry Limit',
-                qty: 0,
-                cost: 10,
-                description:
-                    'Increase the amount of food you can hold at once.',
-            },
-        ]
+        const data = this.props.clientState.upgradesScreen
 
         return (
             <div
@@ -335,51 +337,75 @@ class UpgradesMenu extends React.Component<RouteComponentProps> {
                     <h3>
                         Food:
                         <span style={{ color: '#e91e63', marginRight: 50 }}>
-                            {food}
+                            {data.food}
                         </span>
                     </h3>
                     <h3>
                         Time to next round:
                         <span style={{ color: '#e91e63' }}>
-                            {' ' + timeToNextRound + ' '}
+                            {' ' + data.secondsLeft + ' '}
                         </span>
                         seconds...
                     </h3>
                 </div>
                 <div className="upgradesMenu__items">
-                    {powerups.map(powerup => (
-                        <div
-                            style={{
-                                flexDirection: 'column',
-                                backgroundColor: 'white',
-                                width: 230,
-                                height: 270,
-                                margin: 20,
-                                padding: 30,
-                            }}
-                        >
-                            <h3 style={{ height: 56 }}>{powerup.name}</h3>
-                            <strong
-                                style={{
-                                    fontSize: 26,
-                                    color: 'rgb(233, 30, 99)',
-                                }}
-                            >
-                                {powerup.qty}
-                            </strong>
-                            <p style={{ height: 45 }}>{powerup.description}</p>
-                            <div
-                                style={{
-                                    alignSelf: 'center',
-                                    marginTop: 'auto',
-                                }}
-                            >
-                                <button style={{ marginRight: 10 }}>-</button>
-                                <button>+</button>
-                            </div>
-                            <p>Cost: {powerup.cost}</p>
-                        </div>
-                    ))}
+                    {Object.entries(powerups).map(
+                        ([name, { description, shortName, cost }]) => {
+                            const canBuy = cost < data.food
+                            const canSell = data[shortName] > 0
+                            return (
+                                <div
+                                    style={{
+                                        flexDirection: 'column',
+                                        backgroundColor: 'white',
+                                        width: 230,
+                                        height: 270,
+                                        margin: 20,
+                                        padding: 30,
+                                    }}
+                                >
+                                    <h3 style={{ height: 56 }}>{name}</h3>
+                                    <strong
+                                        style={{
+                                            fontSize: 26,
+                                            color: 'rgb(233, 30, 99)',
+                                        }}
+                                    >
+                                        {data[shortName]}
+                                    </strong>
+                                    <p style={{ height: 45 }}>{description}</p>
+                                    <div
+                                        style={{
+                                            alignSelf: 'center',
+                                            marginTop: 'auto',
+                                        }}
+                                    >
+                                        <button
+                                            style={{ marginRight: 10 }}
+                                            disabled={canSell}
+                                            onClick={() => {
+                                                if (canSell) {
+                                                    fetch('/api/upgrades', {
+                                                        body: JSON.stringify(
+                                                            selectUpgrade(
+                                                                name as 'Sticky Goo',
+                                                                1,
+                                                            ),
+                                                        ),
+                                                        method: 'POST',
+                                                    })
+                                                }
+                                            }}
+                                        >
+                                            -
+                                        </button>
+                                        <button disabled={canBuy}>+</button>
+                                    </div>
+                                    <p>Cost: {cost}</p>
+                                </div>
+                            )
+                        },
+                    )}
                 </div>
             </div>
         )
@@ -446,7 +472,6 @@ async function initServerCxn() {
 
     // get this show on the road
     p.signal(signal)
-    window.appSetState({ serverConnected: true })
 }
 
 function handleMessage(message: Message) {

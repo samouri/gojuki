@@ -3,10 +3,12 @@
  * This includes: canvas details, event handlers, and rendering.
  */
 import { PlayerInput, World, stepPlayer } from '../server/game'
+import { ReactState } from '../src/index'
 import {
     CLIENT_TICK_MESSAGE,
     SERVER_TICK_MESSAGE,
     heartbeat,
+    ClientState,
 } from '../server/state'
 import * as _ from 'lodash'
 
@@ -23,7 +25,7 @@ export function getPressedKeys(): PlayerInput {
 
 export function handleServerTick(message: SERVER_TICK_MESSAGE) {
     if (!message) {
-        throw new Error('new message!!')
+        throw new Error('no message!!')
     }
     /* Update global ticks*/
     serverTick = Math.max(serverTick, message.serverTick)
@@ -35,21 +37,16 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
         (!window.serverParty && message.party) ||
         (message.party &&
             message.party.serverTick >= window.serverParty.serverTick)
-    if (shouldUpdateParty) {
-        window.appSetState({
-            serverState: message.party,
-            serverConnected: true,
-        })
-        window.serverParty = message.party
+
+    const uiState = getUIState(message)
+    if (uiState) {
+        window.appSetState(uiState)
     }
 
-    const shouldUpdateWorld =
-        (!window.serverWorld && message.world) ||
-        (message.world &&
-            message.world.serverTick >= window.serverWorld.serverTick)
-    if (shouldUpdateWorld) {
-        receiveServerWorld(message.world)
-        window.serverWorld = message.world
+    if (message?.party?.game) {
+        receiveServerWorld(message.party.game)
+        // window.appSetState(getUIState(message))
+        window.serverParty = message.party
     }
 }
 
@@ -63,10 +60,64 @@ let clientWorld: World = {
     food: [],
 }
 
+// function pathMemo(fn: Function, paths: Array<string>) {
+//     let prevVals: Array<any> = []
+//     let memo: any = null
+//     return function(obj: any) {
+//         let currVals = paths.map(path => obj[path])
+//         for (let i = 0; i < currVals.length; i++) {
+//             if (currVals[i] !== prevVals[i]) {
+//                 memo = fn(obj)
+//                 break
+//             }
+//         }
+//         return memo
+//     }
+// }
+
+let cacheUIState: ReactState
+function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
+    const party = message.party
+    let newUIState: ReactState = {
+        serverConnected: true,
+        players: [],
+        gameStatus: 'NOT_STARTED',
+        upgradesScreen: {
+            goo: 0,
+            food: 0,
+            speed: 0,
+            carryLimit: 5,
+            secondsLeft: 60,
+        },
+    }
+
+    if (party) {
+        const thisPlayer = party?.game?.players[window.peerId]
+        newUIState = {
+            serverConnected: true,
+            players: party.players,
+            gameStatus: party.status,
+            upgradesScreen: {
+                goo: thisPlayer?.powerups.goo,
+                food: thisPlayer?.food,
+                speed: thisPlayer?.powerups.speed,
+                carryLimit: thisPlayer?.powerups.carryLimit,
+                secondsLeft: party?.game?.roundTimeLeft,
+            },
+        }
+    }
+
+    if (!cacheUIState || !_.isEqual(cacheUIState, newUIState)) {
+        cacheUIState = newUIState
+        return cacheUIState
+    }
+    return null
+}
+
 // 1. Figure out which inputs can be discarded
 // 2. Update the world with all of the new state.
 export function receiveServerWorld(world: World) {
-    // console.log("recieving world!! ", world.serverTick)
+    console.log('recieving world!! ', world)
     unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
     clientWorld = _.cloneDeep(world)
     stepPlayer(
