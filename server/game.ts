@@ -118,7 +118,7 @@ export function getDefaultPlayer(
         powerups: {
             speed: 0,
             goo: 0,
-            carryLimit: 5,
+            carryLimit: 0,
         },
         food: 0,
         carriedFood: 0,
@@ -209,13 +209,13 @@ function depositFood(world: World, player: GamePlayer) {
 
 /* O(n^2): may need to improve this since it runs on each frame. */
 function eatFood(world: World, player: GamePlayer) {
-    if (player.carriedFood === player.powerups.carryLimit) {
+    if (player.carriedFood === player.powerups.carryLimit + 5) {
         return
     }
 
     world.food = world.food.filter(food => {
         if (isTouching(food, player)) {
-            if (player.carriedFood < player.powerups.carryLimit) {
+            if (player.carriedFood < player.powerups.carryLimit + 5) {
                 player.carriedFood += 1
                 return false
             } else {

@@ -27,16 +27,11 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
     if (!message) {
         throw new Error('no message!!')
     }
+
     /* Update global ticks*/
     serverTick = Math.max(serverTick, message.serverTick)
     ackedClientTick = Math.max(ackedClientTick, message.clientTick)
     dirtyServer = true
-
-    /* Update states*/
-    const shouldUpdateParty =
-        (!window.serverParty && message.party) ||
-        (message.party &&
-            message.party.serverTick >= window.serverParty.serverTick)
 
     const uiState = getUIState(message)
     if (uiState) {
@@ -45,7 +40,6 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
 
     if (message?.party?.game) {
         receiveServerWorld(message.party.game)
-        // window.appSetState(getUIState(message))
         window.serverParty = message.party
     }
 }
@@ -75,56 +69,61 @@ let clientWorld: World = {
 //     }
 // }
 
-let cacheUIState: ReactState
+let cacheUIState: ReactState = {
+    serverConnected: false,
+    players: [],
+    gameStatus: 'NOT_STARTED',
+    upgradesScreen: {
+        goo: 0,
+        food: 0,
+        speed: 0,
+        carryLimit: 0,
+        secondsLeft: 60,
+    },
+}
+
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
     const party = message.party
-    let newUIState: ReactState = {
+
+    if (!party && cacheUIState.serverConnected) {
+        return cacheUIState
+    }
+
+    const thisPlayer = party?.game?.players[window.peerId]
+    const newUIState = {
         serverConnected: true,
-        players: [],
-        gameStatus: 'NOT_STARTED',
+        players: party?.players ?? [],
+        gameStatus: party?.status,
         upgradesScreen: {
-            goo: 0,
-            food: 0,
-            speed: 0,
-            carryLimit: 5,
-            secondsLeft: 60,
+            goo: thisPlayer?.powerups.goo,
+            food: thisPlayer?.food,
+            speed: thisPlayer?.powerups.speed,
+            carryLimit: thisPlayer?.powerups.carryLimit,
+            secondsLeft: party?.game?.roundTimeLeft,
         },
     }
 
-    if (party) {
-        const thisPlayer = party?.game?.players[window.peerId]
-        newUIState = {
-            serverConnected: true,
-            players: party.players,
-            gameStatus: party.status,
-            upgradesScreen: {
-                goo: thisPlayer?.powerups.goo,
-                food: thisPlayer?.food,
-                speed: thisPlayer?.powerups.speed,
-                carryLimit: thisPlayer?.powerups.carryLimit,
-                secondsLeft: party?.game?.roundTimeLeft,
-            },
-        }
-    }
-
-    if (!cacheUIState || !_.isEqual(cacheUIState, newUIState)) {
+    if (!_.isEqual(cacheUIState, newUIState)) {
         cacheUIState = newUIState
         return cacheUIState
     }
+
     return null
 }
 
 // 1. Figure out which inputs can be discarded
 // 2. Update the world with all of the new state.
 export function receiveServerWorld(world: World) {
-    console.log('recieving world!! ', world)
+    // console.log('recieving world!! ', world)
+    window.serverWorld = world
     unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
+
     clientWorld = _.cloneDeep(world)
-    stepPlayer(
-        clientWorld,
-        window.peerId,
-        unackedInputs.map(elem => elem[1]),
-    )
+    // stepPlayer(
+    //     clientWorld,
+    //     window.peerId,
+    //     unackedInputs.map(elem => elem[1]),
+    // )
 }
 
 let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
@@ -133,7 +132,7 @@ export function localClientStep() {
     clientTick++
     const keys = getPressedKeys()
     unackedInputs.push([clientTick, keys])
-    unackedInputs = _.takeRight(unackedInputs, 5)
+    // unackedInputs = _.takeRight(unackedInputs, 5)
     stepPlayer(clientWorld, window.peerId, [keys])
     return clientWorld
 }

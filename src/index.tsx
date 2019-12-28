@@ -104,7 +104,7 @@ class App extends React.Component {
                         players={this.state.players}
                     />
                     <UpgradesMenu path="/upgrades" clientState={this.state} />
-                    <GameScreen path="/game" players={this.state.players} />
+                    <GameScreen path="/game" />
                 </Router>
             </div>
         )
@@ -219,24 +219,32 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
     canvas: HTMLCanvasElement
     lastTime: number
     _isMounted: boolean
+    _animationCb: number | null
 
     componentDidMount() {
         this._isMounted = true
         requestAnimationFrame(this.gameLoop)
     }
+
     componentWillUnmount() {
         this._isMounted = false
+    }
+
+    shouldComponentUpdate() {
+        return false
     }
 
     gameLoop = (time: number) => {
         const dt = time - this.lastTime
         this.lastTime = time
-        if (!this.canvas || !window.serverWorld) {
+
+        if (!this.canvas) {
             return
         }
 
         // update model
-        let world = localClientStep()
+        localClientStep()
+        let world = window.serverParty?.game
 
         // render
         let ctx = this.canvas.getContext('2d')
@@ -245,6 +253,7 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
     }
 
     render() {
+        console.log(`Rerender triggered`)
         let { width, height } = getGameDimensions()
         height += HUD_HEIGHT
         return (
@@ -267,7 +276,11 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
                         canvas.width = width
                         canvas.height = height
                         this.canvas = canvas
-                        requestAnimationFrame(this.gameLoop)
+                        if (!this._animationCb) {
+                            this._animationCb = requestAnimationFrame(
+                                this.gameLoop,
+                            )
+                        }
                     }}
                 />
             </div>
@@ -363,6 +376,7 @@ class UpgradesMenu extends React.Component<
                                         margin: 20,
                                         padding: 30,
                                     }}
+                                    key={name}
                                 >
                                     <h3 style={{ height: 56 }}>{name}</h3>
                                     <strong

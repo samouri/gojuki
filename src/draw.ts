@@ -86,6 +86,13 @@ function drawArena(ctx: CanvasRenderingContext2D, players: Array<GamePlayer>) {
         )
 
         ctx.fillStyle = 'white'
+        // Player score in base
+        ctx.fillText(
+            player.food + '',
+            cfg.basePosition.x + 15,
+            cfg.basePosition.y + 35 + HUD_HEIGHT,
+        )
+        // Player name
         ctx.fillText(
             player.playerName,
             cfg.basePosition.x + 5,

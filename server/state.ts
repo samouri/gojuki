@@ -121,10 +121,7 @@ export function initTicks(peerId: string) {
 function handleJoinParty(peerId: string, playerName: string) {
     let partyId = Object.keys(state.parties).find(partyId => {
         const party = state.parties[partyId]
-        return (
-            party.status === 'NOT_STARTED' &&
-            party.players.length < maxPartySize
-        )
+        return party.status === 'LOBBY' && party.players.length < maxPartySize
     })
 
     if (partyId) {
@@ -252,16 +249,12 @@ function getGameDataToSend(
         return { party: null }
     }
 
-    const { ackedServerTick } = state.clientTicks[peerId]
     const ret: any = { party: null }
-
-    if (ackedServerTick <= _.get(state.parties, [partyId, 'serverTick'])) {
-        ret.party = state.parties[partyId]
-    }
 
     if (state.parties[partyId].game) {
         stepWorld(state.parties[partyId], serverTick)
     }
+    ret.party = state.parties[partyId]
 
     return ret
 }
