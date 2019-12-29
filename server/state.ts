@@ -150,6 +150,13 @@ function handleJoinParty(peerId: string, playerName: string) {
                 serverTick,
                 food: [],
             }
+            // HACK TO START AT UPGRADES
+            const upgradesHack = false
+            if (upgradesHack) {
+                party.game.mode = 'UPGRADES'
+                party.status = 'UPGRADES'
+                party.game.players[party.players[0].peerId].food = 18
+            }
         }
     } else {
         partyId = String(nextParty++)

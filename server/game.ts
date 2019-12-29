@@ -47,6 +47,7 @@ export type GamePlayer = {
     carriedFood: number
     height: number
     width: number
+    carryLimitReached: boolean
 }
 
 const baseSize = 70
@@ -114,7 +115,7 @@ export function getDefaultPlayer(
         rotation: PLAYER_CONFIG[playerNum].startPosition.rotation,
         friction: 0.9,
         turnSpeed: 0.1,
-        acceleration: 0.2,
+        acceleration: 1.0,
         powerups: {
             speed: 0,
             goo: 0,
@@ -124,6 +125,7 @@ export function getDefaultPlayer(
         carriedFood: 0,
         height: 20,
         width: 20,
+        carryLimitReached: false,
     }
 }
 
@@ -155,17 +157,23 @@ export function stepWorld(party: ClientState, serverTick: number) {
         })
     }
 
-    if (world.roundTimeLeft <= 0 && party.status !== 'UPGRADES') {
-        party.status = 'UPGRADES'
-        party.serverTick = serverTick
-        world.roundStartTime = Date.now()
+    if (world.roundTimeLeft <= 0) {
+        // ROUND 3 alert
+        if (party.status === 'UPGRADES') {
+            party.status = 'PLAYING'
+            party.serverTick = serverTick
+            world.roundStartTime = Date.now()
+            party.game.round++
+        } else if (party.status === 'PLAYING') {
+            if (party.game.round === 3) {
+                party.status = 'FINISHED'
+                return
+            }
+            party.status = 'UPGRADES'
+            party.serverTick = serverTick
+            world.roundStartTime = Date.now()
+        }
     }
-
-    // if (world.roundTimeLeft <= 0 && party.status === 'UPGRADES') {
-    //     party.status = 'PLAYING'
-    //     party.serverTick = serverTick
-    //     world.roundStartTime = Date.now()
-    // }
 }
 
 export function stepPlayer(
@@ -181,8 +189,11 @@ export function stepPlayer(
         const input = inputs.shift()
         if (input.up) {
             p.v += p.acceleration
+            p.v = Math.min(p.powerups.speed + 5, p.v)
+        } else {
+            p.v *= p.friction
         }
-        p.v *= p.friction
+
         p.x = p.x + Math.sin(p.rotation) * p.v
         p.y = p.y + Math.cos(p.rotation) * -1 * p.v
 
@@ -209,17 +220,15 @@ function depositFood(world: World, player: GamePlayer) {
 
 /* O(n^2): may need to improve this since it runs on each frame. */
 function eatFood(world: World, player: GamePlayer) {
-    if (player.carriedFood === player.powerups.carryLimit + 5) {
-        return
-    }
-
     world.food = world.food.filter(food => {
         if (isTouching(food, player)) {
+            console.log('touching food')
             if (player.carriedFood < player.powerups.carryLimit + 5) {
                 player.carriedFood += 1
                 return false
             } else {
-                // TODO: display the carry limit reached warning
+                player.carryLimitReached = true
+                setTimeout(() => (player.carryLimitReached = false), 1000)
             }
         }
         return true

@@ -219,15 +219,19 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
     canvas: HTMLCanvasElement
     lastTime: number
     _isMounted: boolean
-    _animationCb: number | null
+    _animationCb: number | null = null
 
     componentDidMount() {
         this._isMounted = true
-        requestAnimationFrame(this.gameLoop)
+        if (this._animationCb === null) {
+            this._animationCb = requestAnimationFrame(this.gameLoop)
+        }
     }
 
     componentWillUnmount() {
         this._isMounted = false
+        window.cancelAnimationFrame(this._animationCb)
+        this._animationCb = null
     }
 
     shouldComponentUpdate() {
@@ -238,7 +242,8 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         const dt = time - this.lastTime
         this.lastTime = time
 
-        if (!this.canvas) {
+        if (!this.canvas || !window.serverParty?.game) {
+            requestAnimationFrame(this.gameLoop)
             return
         }
 
@@ -364,7 +369,7 @@ class UpgradesMenu extends React.Component<
                 <div className="upgradesMenu__items">
                     {Object.entries(powerups).map(
                         ([name, { description, shortName, cost }]) => {
-                            const canBuy = cost < data.food
+                            const canBuy = cost <= data.food
                             const canSell = data[shortName] > 0
                             return (
                                 <div
@@ -396,24 +401,51 @@ class UpgradesMenu extends React.Component<
                                     >
                                         <button
                                             style={{ marginRight: 10 }}
-                                            disabled={canSell}
+                                            disabled={!canSell}
                                             onClick={() => {
-                                                if (canSell) {
-                                                    fetch('/api/upgrades', {
-                                                        body: JSON.stringify(
-                                                            selectUpgrade(
-                                                                name as 'Sticky Goo',
-                                                                1,
-                                                            ),
-                                                        ),
-                                                        method: 'POST',
-                                                    })
+                                                if (!canSell) {
+                                                    return
                                                 }
+                                                fetch('/api', {
+                                                    body: JSON.stringify(
+                                                        selectUpgrade(
+                                                            name as 'Sticky Goo',
+                                                            -1,
+                                                        ),
+                                                    ),
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type':
+                                                            'application/json',
+                                                    },
+                                                })
                                             }}
                                         >
                                             -
                                         </button>
-                                        <button disabled={canBuy}>+</button>
+                                        <button
+                                            disabled={!canBuy}
+                                            onClick={() => {
+                                                if (!canBuy) {
+                                                    return
+                                                }
+                                                fetch('/api', {
+                                                    body: JSON.stringify(
+                                                        selectUpgrade(
+                                                            name as 'Sticky Goo',
+                                                            1,
+                                                        ),
+                                                    ),
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type':
+                                                            'application/json',
+                                                    },
+                                                })
+                                            }}
+                                        >
+                                            +
+                                        </button>
                                     </div>
                                     <p>Cost: {cost}</p>
                                 </div>

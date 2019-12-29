@@ -17,11 +17,11 @@ foodImg.src = foodImgSrc
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
     const players = Object.values(world.players)
-    drawHUD(ctx, world)
     drawArena(ctx, players)
 
     world.food.forEach(food => drawFood(ctx, food))
     players.forEach(p => drawPlayer(ctx, p))
+    drawHUD(ctx, world)
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
@@ -52,7 +52,8 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     ctx.fillStyle = 'white'
     ctx.font = '12px Arial'
     ctx.fillText(
-        `Food remaining: ${player.carriedFood}/${player.powerups.carryLimit}      Sticky Goo: ${player.powerups.goo}`,
+        `Food remaining: ${player.carriedFood}/${player.powerups.carryLimit +
+            5}      Sticky Goo: ${player.powerups.goo}`,
         20,
         25,
     )
@@ -67,6 +68,15 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
         25,
     )
 
+    if (player.carryLimitReached) {
+        ctx.fillStyle = 'white'
+        ctx.font = '20px Arial'
+        ctx.fillText(
+            `Carry limit reached, return to base!`,
+            getGameDimensions().width / 2 - 160,
+            getGameDimensions().height / 2,
+        )
+    }
     ctx.restore()
 }
 
@@ -89,7 +99,7 @@ function drawArena(ctx: CanvasRenderingContext2D, players: Array<GamePlayer>) {
         // Player score in base
         ctx.fillText(
             player.food + '',
-            cfg.basePosition.x + 15,
+            cfg.basePosition.x + 25,
             cfg.basePosition.y + 35 + HUD_HEIGHT,
         )
         // Player name
