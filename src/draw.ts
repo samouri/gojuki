@@ -4,35 +4,9 @@ import {
     getGameDimensions,
     World,
     HUD_HEIGHT,
+    Rectangle,
 } from '../server/game'
-
-import deployGooWav from '../sounds/deploy-goo.wav'
-const deployGooSound = new Audio(deployGooWav)
-const effectsHistory = {
-    deployGooSound: 0,
-}
-
-import bug1ImgSrc from '../img/bug/bug1.png'
-import bug2ImgSrc from '../img/bug/bug2.png'
-import bug3ImgSrc from '../img/bug/bug3.png'
-import bug4ImgSrc from '../img/bug/bug4.png'
-
-import foodImgSrc from '../img/food.png'
-import gooImgSrc from '../img/goo.png'
-const bug1Img = new Image()
-bug1Img.src = bug1ImgSrc
-const bug2Img = new Image()
-bug2Img.src = bug2ImgSrc
-const bug3Img = new Image()
-bug3Img.src = bug3ImgSrc
-const bug4Img = new Image()
-bug4Img.src = bug4ImgSrc
-const bugImages = [bug1Img, bug2Img, bug3Img, bug4Img]
-
-const foodImg = new Image()
-foodImg.src = foodImgSrc
-const gooImg = new Image()
-gooImg.src = gooImgSrc
+import { sounds, images } from './assets'
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
     const players = Object.values(world.players)
@@ -49,16 +23,24 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
     ctx.translate(player.x, player.y + HUD_HEIGHT)
     ctx.rotate(player.rotation)
     // ctx.drawImage(img, -10, -10, 20, 20)
-    drawTintedImage(bugImages[player.frame], -15, -15, 30, 30, ctx, fillStyle)
+    drawTintedImage(
+        images.bug[player.frame],
+        -player.width / 2,
+        -player.height / 2,
+        player.width,
+        player.height,
+        ctx,
+        fillStyle,
+    )
     ctx.rotate(-player.rotation)
     ctx.translate(-player.x, -(player.y + HUD_HEIGHT))
 }
 
 function drawFood(
     ctx: CanvasRenderingContext2D,
-    { x, y, rotation }: { x: number; y: number; rotation: number },
+    { x, y, width, height }: Rectangle,
 ) {
-    ctx.drawImage(foodImg, x, y + HUD_HEIGHT, 15, 15)
+    ctx.drawImage(images.food, x, y + HUD_HEIGHT, width, height)
 }
 
 function drawGoo(
@@ -67,7 +49,7 @@ function drawGoo(
 ) {
     ctx.save()
     const fillStyle = PLAYER_CONFIG[playerNum].color
-    drawTintedImage(gooImg, x, y + HUD_HEIGHT, 20, 20, ctx, fillStyle)
+    drawTintedImage(images.goo, x, y + HUD_HEIGHT, 20, 20, ctx, fillStyle)
     ctx.restore()
 }
 
@@ -75,10 +57,6 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     ctx.save()
 
     const player = world.players[window.peerId]
-    if (player && effectsHistory.deployGooSound !== player.lastGooDeployed) {
-        effectsHistory.deployGooSound = player.lastGooDeployed
-        deployGooSound.play()
-    }
 
     ctx.fillStyle = '#460a20'
     ctx.fillRect(0, 0, getGameDimensions().width, HUD_HEIGHT)
@@ -102,7 +80,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
         25,
     )
 
-    if (player.carryLimitReached) {
+    if (Date.now() - player.timings.carryLimitReached < 1000) {
         ctx.fillStyle = 'white'
         ctx.font = '20px Arial'
         ctx.fillText(
