@@ -7,7 +7,7 @@ import {
     stepWorld,
     powerups,
 } from './game'
-const maxPartySize = 1
+const maxPartySize = 2
 let serverTick = 0
 
 /* Messages & message creators */
