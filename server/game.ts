@@ -61,11 +61,15 @@ export type GamePlayer = {
     carriedFood: number
     height: number
     width: number
-    carryLimitReached: boolean
-    lastGooHit: number
-    lastGooDeployed: number
     frame: 0 | 1 | 2 | 3
-    lastFrameSwitch: number
+    timings: {
+        lastGooHit: number
+        lastGooDeployed: number
+        lastFrameSwitch: number
+        carryLimitReached: number
+        lastBaseReturn: number
+        lastFoodEaten: number
+    }
 }
 
 const baseSize = 70
@@ -141,13 +145,17 @@ export function getDefaultPlayer(
         },
         food: 0,
         carriedFood: 0,
-        height: 20,
-        width: 20,
-        carryLimitReached: false,
-        lastGooHit: 0,
-        lastGooDeployed: 0,
+        height: 30,
+        width: 30,
+        timings: {
+            carryLimitReached: 0,
+            lastGooDeployed: 0,
+            lastFrameSwitch: 0,
+            lastGooHit: 0,
+            lastBaseReturn: 0,
+            lastFoodEaten: 0,
+        },
         frame: 0,
-        lastFrameSwitch: 0,
     }
 }
 
@@ -218,9 +226,9 @@ export function stepPlayer(
         } else {
             p.v *= p.friction
         }
-        if (p.v > 0.3 && Date.now() - p.lastFrameSwitch > 167) {
+        if (p.v > 0.3 && Date.now() - p.timings.lastFrameSwitch > 167) {
             p.frame = ((p.frame + 1) % 4) as 0 | 1 | 2 | 3
-            p.lastFrameSwitch = Date.now()
+            p.timings.lastFrameSwitch = Date.now()
         }
 
         p.x = p.x + Math.sin(p.rotation) * p.v
@@ -248,24 +256,24 @@ export function stepPlayer(
                 height: 20,
             })
             p.powerups.goo -= 1
-            p.lastGooDeployed = Date.now()
+            p.timings.lastGooDeployed = Date.now()
         }
     }
 }
 
 function outOfCooldown(player: GamePlayer): boolean {
     const duration = 200
-    return Date.now() - player.lastGooDeployed > duration
+    return Date.now() - player.timings.lastGooDeployed > duration
 }
 function isSticky(player: GamePlayer): boolean {
     const duration = 5000
-    return Date.now() - player.lastGooHit < duration
+    return Date.now() - player.timings.lastGooHit < duration
 }
 
 function runIntoGoo(world: World, player: GamePlayer) {
     world.goo = world.goo.filter(goo => {
         if (isTouching(goo, player) && goo.playerNum !== player.playerNumber) {
-            player.lastGooHit = Date.now()
+            player.timings.lastGooHit = Date.now()
             return false
         }
         return true
@@ -274,9 +282,10 @@ function runIntoGoo(world: World, player: GamePlayer) {
 
 function depositFood(world: World, player: GamePlayer) {
     const playerBase = PLAYER_CONFIG[player.playerNumber].basePosition
-    if (isTouching(player, playerBase)) {
+    if (isTouching(player, playerBase) && player.carriedFood > 0) {
         player.food += player.carriedFood
         player.carriedFood = 0
+        player.timings.lastBaseReturn = Date.now()
     }
 }
 
@@ -286,17 +295,17 @@ function eatFood(world: World, player: GamePlayer) {
         if (isTouching(food, player)) {
             if (player.carriedFood < player.powerups.carryLimit + 5) {
                 player.carriedFood += 1
+                player.timings.lastFoodEaten = Date.now()
                 return false
             } else {
-                player.carryLimitReached = true
-                setTimeout(() => (player.carryLimitReached = false), 1000)
+                player.timings.carryLimitReached = Date.now()
             }
         }
         return true
     })
 }
 
-type Rectangle = { x: number; y: number; width: number; height: number }
+export type Rectangle = { x: number; y: number; width: number; height: number }
 function isTouching(rect1: Rectangle, rect2: Rectangle): boolean {
     // no horizontal overlap
     if (rect1.x > rect2.x + rect2.width || rect2.x > rect1.x + rect1.width) {

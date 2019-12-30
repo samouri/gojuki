@@ -23,6 +23,7 @@ import {
 import { Instance } from 'simple-peer'
 import { localClientStep, handleServerTick } from './game'
 import { drawWorld } from './draw'
+import { playEffects } from './assets'
 
 declare global {
     interface Window {
@@ -318,6 +319,7 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         // render
         let ctx = this.canvas.getContext('2d')
         drawWorld(ctx, world)
+        playEffects(world.players[window.peerId])
         requestAnimationFrame(this.gameLoop)
     }
 
