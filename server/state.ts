@@ -7,7 +7,7 @@ import {
     stepWorld,
     powerups,
 } from './game'
-const maxPartySize = 2
+const maxPartySize = 1
 let serverTick = 0
 
 /* Messages & message creators */
@@ -151,7 +151,7 @@ function handleJoinParty(peerId: string, playerName: string) {
                 ['gibbersih']: getDefaultPlayer(3, 'fakePlayer3'),
                 ['gibberish2']: getDefaultPlayer(4, 'fakePlayer4'),
             },
-            round: 1,
+            round: 3,
             roundStartTime: Date.now(),
             roundTimeLeft: 30,
             mode: 'GAMEPLAY',

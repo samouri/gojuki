@@ -64,6 +64,8 @@ export type GamePlayer = {
     carryLimitReached: boolean
     lastGooHit: number
     lastGooDeployed: number
+    frame: 0 | 1 | 2 | 3
+    lastFrameSwitch: number
 }
 
 const baseSize = 70
@@ -144,6 +146,8 @@ export function getDefaultPlayer(
         carryLimitReached: false,
         lastGooHit: -Infinity,
         lastGooDeployed: -Infinity,
+        frame: 0,
+        lastFrameSwitch: -Infinity,
     }
 }
 
@@ -213,6 +217,10 @@ export function stepPlayer(
             }
         } else {
             p.v *= p.friction
+        }
+        if (p.v > 0.3 && Date.now() - p.lastFrameSwitch > 167) {
+            p.frame = ((p.frame + 1) % 4) as 0 | 1 | 2 | 3
+            p.lastFrameSwitch = Date.now()
         }
 
         p.x = p.x + Math.sin(p.rotation) * p.v

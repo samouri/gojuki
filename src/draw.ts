@@ -6,11 +6,23 @@ import {
     HUD_HEIGHT,
 } from '../server/game'
 
-import bugImgSrc from '../img/bug/bug1.png'
+import bug1ImgSrc from '../img/bug/bug1.png'
+import bug2ImgSrc from '../img/bug/bug2.png'
+import bug3ImgSrc from '../img/bug/bug3.png'
+import bug4ImgSrc from '../img/bug/bug4.png'
+
 import foodImgSrc from '../img/food.png'
 import gooImgSrc from '../img/goo.png'
-const bugImg = new Image()
-bugImg.src = bugImgSrc
+const bug1Img = new Image()
+bug1Img.src = bug1ImgSrc
+const bug2Img = new Image()
+bug2Img.src = bug2ImgSrc
+const bug3Img = new Image()
+bug3Img.src = bug3ImgSrc
+const bug4Img = new Image()
+bug4Img.src = bug4ImgSrc
+const bugImages = [bug1Img, bug2Img, bug3Img, bug4Img]
+
 const foodImg = new Image()
 foodImg.src = foodImgSrc
 const gooImg = new Image()
@@ -31,7 +43,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
     ctx.translate(player.x, player.y + HUD_HEIGHT)
     ctx.rotate(player.rotation)
     // ctx.drawImage(img, -10, -10, 20, 20)
-    drawTintedImage(bugImg, -10, -10, 20, 20, ctx, fillStyle)
+    drawTintedImage(bugImages[player.frame], -10, -10, 20, 20, ctx, fillStyle)
     ctx.rotate(-player.rotation)
     ctx.translate(-player.x, -(player.y + HUD_HEIGHT))
 }
