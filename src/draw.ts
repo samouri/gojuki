@@ -8,18 +8,20 @@ import {
 
 import bugImgSrc from '../img/bug/bug1.png'
 import foodImgSrc from '../img/food.png'
-import { Player } from '../server/state'
+import gooImgSrc from '../img/goo.png'
 const bugImg = new Image()
 bugImg.src = bugImgSrc
-
 const foodImg = new Image()
 foodImg.src = foodImgSrc
+const gooImg = new Image()
+gooImg.src = gooImgSrc
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
     const players = Object.values(world.players)
     drawArena(ctx, players)
 
     world.food.forEach(food => drawFood(ctx, food))
+    world.goo.forEach(goo => drawGoo(ctx, goo))
     players.forEach(p => drawPlayer(ctx, p))
     drawHUD(ctx, world)
 }
@@ -39,6 +41,16 @@ function drawFood(
     { x, y, rotation }: { x: number; y: number; rotation: number },
 ) {
     ctx.drawImage(foodImg, x, y + HUD_HEIGHT, 10, 10)
+}
+
+function drawGoo(
+    ctx: CanvasRenderingContext2D,
+    { x, y, playerNum }: { x: number; y: number; playerNum: number },
+) {
+    ctx.save()
+    const fillStyle = PLAYER_CONFIG[playerNum].color
+    drawTintedImage(gooImg, x, y + HUD_HEIGHT, 20, 20, ctx, fillStyle)
+    ctx.restore()
 }
 
 function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
@@ -99,8 +111,8 @@ function drawArena(ctx: CanvasRenderingContext2D, players: Array<GamePlayer>) {
         // Player score in base
         ctx.fillText(
             player.food + '',
-            cfg.basePosition.x + 25,
-            cfg.basePosition.y + 35 + HUD_HEIGHT,
+            cfg.basePosition.x + 30,
+            cfg.basePosition.y + 37 + HUD_HEIGHT,
         )
         // Player name
         ctx.fillText(

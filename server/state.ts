@@ -7,8 +7,7 @@ import {
     stepWorld,
     powerups,
 } from './game'
-import { jitter } from './peers'
-const maxPartySize = 2
+const maxPartySize = 1
 let serverTick = 0
 
 /* Messages & message creators */
@@ -124,47 +123,48 @@ function handleJoinParty(peerId: string, playerName: string) {
         return party.status === 'LOBBY' && party.players.length < maxPartySize
     })
 
-    if (partyId) {
-        const party = state.parties[partyId]
-        party.players.push({ peerId, playerName })
-        party.serverTick = serverTick
-        if (party.players.length === maxPartySize) {
-            party.status = 'PLAYING'
-            party.game = {
-                players: {
-                    [party.players[0].peerId]: getDefaultPlayer(
-                        1,
-                        party.players[0].playerName,
-                    ),
-                    [party.players[1].peerId]: getDefaultPlayer(
-                        2,
-                        party.players[1].playerName,
-                    ),
-                    ['gibbersih']: getDefaultPlayer(3, 'fakePlayer3'),
-                    ['gibberish2']: getDefaultPlayer(4, 'fakePlayer4'),
-                },
-                round: 1,
-                roundStartTime: Date.now(),
-                roundTimeLeft: 60,
-                mode: 'GAMEPLAY',
-                serverTick,
-                food: [],
-            }
-            // HACK TO START AT UPGRADES
-            const upgradesHack = false
-            if (upgradesHack) {
-                party.game.mode = 'UPGRADES'
-                party.status = 'UPGRADES'
-                party.game.players[party.players[0].peerId].food = 18
-            }
-        }
-    } else {
+    if (!partyId) {
         partyId = String(nextParty++)
         state.parties[partyId] = {
             status: 'LOBBY',
-            players: [{ peerId, playerName }],
+            players: [],
             serverTick,
             game: undefined,
+        }
+    }
+
+    const party = state.parties[partyId]
+    party.players.push({ peerId, playerName })
+    party.serverTick = serverTick
+    if (party.players.length === maxPartySize) {
+        party.status = 'PLAYING'
+        party.game = {
+            players: {
+                [party.players[0].peerId]: getDefaultPlayer(
+                    1,
+                    party.players[0]?.playerName ?? 'fakePlayer1',
+                ),
+                [party.players[1]?.peerId ?? '2']: getDefaultPlayer(
+                    2,
+                    party.players[1]?.playerName ?? 'fakePlayer2',
+                ),
+                ['gibbersih']: getDefaultPlayer(3, 'fakePlayer3'),
+                ['gibberish2']: getDefaultPlayer(4, 'fakePlayer4'),
+            },
+            round: 1,
+            roundStartTime: Date.now(),
+            roundTimeLeft: 60,
+            mode: 'GAMEPLAY',
+            serverTick,
+            food: [],
+            goo: [],
+        }
+        // HACK TO START AT UPGRADES
+        const upgradesHack = false
+        if (upgradesHack) {
+            party.game.mode = 'UPGRADES'
+            party.status = 'UPGRADES'
+            party.game.players[party.players[0].peerId].food = 18
         }
     }
     partyIndex[peerId] = partyId

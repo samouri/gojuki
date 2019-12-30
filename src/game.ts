@@ -20,6 +20,7 @@ export function getPressedKeys(): PlayerInput {
         left: pressedKeys.has('ArrowLeft'),
         right: pressedKeys.has('ArrowRight'),
         up: pressedKeys.has('ArrowUp'),
+        space: pressedKeys.has('Space'),
     }
 }
 
@@ -52,6 +53,7 @@ let clientWorld: World = {
     roundStartTime: Date.now(),
     roundTimeLeft: 60,
     food: [],
+    goo: [],
 }
 
 // function pathMemo(fn: Function, paths: Array<string>) {

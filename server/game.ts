@@ -25,11 +25,25 @@ export type World = {
         height: number
         width: number
     }>
+    goo: Array<{
+        x: number
+        y: number
+        height: number
+        width: number
+        playerNum: PlayerNumber
+    }>
 }
 
-export type PlayerInput = { left: boolean; right: boolean; up: boolean }
+type PlayerNumber = 1 | 2 | 3 | 4
+
+export type PlayerInput = {
+    left: boolean
+    right: boolean
+    up: boolean
+    space: boolean
+}
 export type GamePlayer = {
-    playerNumber: 1 | 2 | 3 | 4
+    playerNumber: PlayerNumber
     playerName: string
     x: number
     y: number
@@ -48,6 +62,8 @@ export type GamePlayer = {
     height: number
     width: number
     carryLimitReached: boolean
+    lastGooHit: number
+    lastGooDeployed: number
 }
 
 const baseSize = 70
@@ -118,7 +134,7 @@ export function getDefaultPlayer(
         acceleration: 1.0,
         powerups: {
             speed: 0,
-            goo: 0,
+            goo: 5,
             carryLimit: 0,
         },
         food: 0,
@@ -126,6 +142,8 @@ export function getDefaultPlayer(
         height: 20,
         width: 20,
         carryLimitReached: false,
+        lastGooHit: -Infinity,
+        lastGooDeployed: -Infinity,
     }
 }
 
@@ -190,6 +208,9 @@ export function stepPlayer(
         if (input.up) {
             p.v += p.acceleration
             p.v = Math.min(p.powerups.speed + 5, p.v)
+            if (isSticky(p)) {
+                p.v = Math.min(p.v, 0.5)
+            }
         } else {
             p.v *= p.friction
         }
@@ -207,7 +228,40 @@ export function stepPlayer(
         p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
         eatFood(world, p)
         depositFood(world, p)
+
+        runIntoGoo(world, p)
+        // depositGoo(world, p)
+        if (input.space && p.powerups.goo > 0 && outOfCooldown(p)) {
+            world.goo.push({
+                playerNum: p.playerNumber,
+                x: p.x - 10,
+                y: p.y - 15,
+                width: 20,
+                height: 20,
+            })
+            p.powerups.goo -= 1
+            p.lastGooDeployed = Date.now()
+        }
     }
+}
+
+function outOfCooldown(player: GamePlayer): boolean {
+    const duration = 200
+    return Date.now() - player.lastGooDeployed > duration
+}
+function isSticky(player: GamePlayer): boolean {
+    const duration = 5000
+    return Date.now() - player.lastGooHit < duration
+}
+
+function runIntoGoo(world: World, player: GamePlayer) {
+    world.goo = world.goo.filter(goo => {
+        if (isTouching(goo, player) && goo.playerNum !== player.playerNumber) {
+            player.lastGooHit = Date.now()
+            return false
+        }
+        return true
+    })
 }
 
 function depositFood(world: World, player: GamePlayer) {
