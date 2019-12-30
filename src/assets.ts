@@ -10,7 +10,6 @@ type images = {
     goo: HTMLImageElement
 }
 
-console.log(soundsUrls)
 export const images: images = mapValues(imgUrls, src => {
     if (typeof src === 'object') {
         return Object.values(src).map(getImg)
