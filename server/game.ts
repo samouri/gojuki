@@ -222,7 +222,6 @@ function depositFood(world: World, player: GamePlayer) {
 function eatFood(world: World, player: GamePlayer) {
     world.food = world.food.filter(food => {
         if (isTouching(food, player)) {
-            console.log('touching food')
             if (player.carriedFood < player.powerups.carryLimit + 5) {
                 player.carriedFood += 1
                 return false
