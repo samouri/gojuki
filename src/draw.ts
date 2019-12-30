@@ -49,7 +49,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
     ctx.translate(player.x, player.y + HUD_HEIGHT)
     ctx.rotate(player.rotation)
     // ctx.drawImage(img, -10, -10, 20, 20)
-    drawTintedImage(bugImages[player.frame], -10, -10, 20, 20, ctx, fillStyle)
+    drawTintedImage(bugImages[player.frame], -15, -15, 30, 30, ctx, fillStyle)
     ctx.rotate(-player.rotation)
     ctx.translate(-player.x, -(player.y + HUD_HEIGHT))
 }
@@ -58,7 +58,7 @@ function drawFood(
     ctx: CanvasRenderingContext2D,
     { x, y, rotation }: { x: number; y: number; rotation: number },
 ) {
-    ctx.drawImage(foodImg, x, y + HUD_HEIGHT, 10, 10)
+    ctx.drawImage(foodImg, x, y + HUD_HEIGHT, 15, 15)
 }
 
 function drawGoo(
@@ -129,14 +129,17 @@ function drawArena(ctx: CanvasRenderingContext2D, players: Array<GamePlayer>) {
             70,
         )
 
-        ctx.fillStyle = 'white'
+        ctx.fillStyle = 'black'
+        ctx.font = '18px Arial'
         // Player score in base
         ctx.fillText(
             player.food + '',
-            cfg.basePosition.x + 30,
-            cfg.basePosition.y + 37 + HUD_HEIGHT,
+            cfg.basePosition.x + 5,
+            cfg.basePosition.y + HUD_HEIGHT + 20,
         )
         // Player name
+        ctx.fillStyle = 'white'
+        ctx.font = '14px Arial'
         ctx.fillText(
             player.playerName,
             cfg.basePosition.x + 5,
