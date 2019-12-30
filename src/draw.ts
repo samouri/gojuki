@@ -6,6 +6,12 @@ import {
     HUD_HEIGHT,
 } from '../server/game'
 
+import deployGooWav from '../sounds/deploy-goo.wav'
+const deployGooSound = new Audio(deployGooWav)
+const effectsHistory = {
+    deployGooSound: 0,
+}
+
 import bug1ImgSrc from '../img/bug/bug1.png'
 import bug2ImgSrc from '../img/bug/bug2.png'
 import bug3ImgSrc from '../img/bug/bug3.png'
@@ -69,6 +75,10 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     ctx.save()
 
     const player = world.players[window.peerId]
+    if (player && effectsHistory.deployGooSound !== player.lastGooDeployed) {
+        effectsHistory.deployGooSound = player.lastGooDeployed
+        deployGooSound.play()
+    }
 
     ctx.fillStyle = '#460a20'
     ctx.fillRect(0, 0, getGameDimensions().width, HUD_HEIGHT)

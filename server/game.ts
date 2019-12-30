@@ -144,10 +144,10 @@ export function getDefaultPlayer(
         height: 20,
         width: 20,
         carryLimitReached: false,
-        lastGooHit: -Infinity,
-        lastGooDeployed: -Infinity,
+        lastGooHit: 0,
+        lastGooDeployed: 0,
         frame: 0,
-        lastFrameSwitch: -Infinity,
+        lastFrameSwitch: 0,
     }
 }
 
