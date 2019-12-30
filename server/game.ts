@@ -34,7 +34,7 @@ export type World = {
     }>
 }
 
-type PlayerNumber = 1 | 2 | 3 | 4
+export type PlayerNumber = 1 | 2 | 3 | 4
 
 export type PlayerInput = {
     left: boolean

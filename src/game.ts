@@ -2,7 +2,7 @@
  * Contains all the details about running a game that are client specific.
  * This includes: canvas details, event handlers, and rendering.
  */
-import { PlayerInput, World, stepPlayer } from '../server/game'
+import { PlayerInput, World, stepPlayer, GamePlayer } from '../server/game'
 import { ReactState } from '../src/index'
 import {
     CLIENT_TICK_MESSAGE,
@@ -82,6 +82,7 @@ let cacheUIState: ReactState = {
         carryLimit: 0,
         secondsLeft: 60,
     },
+    scores: [],
 }
 
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
@@ -92,6 +93,16 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
     }
 
     const thisPlayer = party?.game?.players[window.peerId]
+    const scores = Object.entries(party?.game?.players ?? {})
+        .sort((x, y) => y[1].food - x[1].food)
+        .map(([peerId, player]) => {
+            return {
+                playerName: player.playerName,
+                food: player.food,
+                playerNumber: player.playerNumber,
+            }
+        })
+
     const newUIState = {
         serverConnected: true,
         players: party?.players ?? [],
@@ -103,6 +114,7 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
             carryLimit: thisPlayer?.powerups.carryLimit,
             secondsLeft: party?.game?.roundTimeLeft,
         },
+        scores,
     }
 
     if (!_.isEqual(cacheUIState, newUIState)) {

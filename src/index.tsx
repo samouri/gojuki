@@ -18,6 +18,7 @@ import {
     powerups,
     GamePlayer,
     PLAYER_CONFIG,
+    PlayerNumber,
 } from '../server/game'
 import { Instance } from 'simple-peer'
 import { localClientStep, handleServerTick } from './game'
@@ -50,6 +51,7 @@ export type ReactState = {
         carryLimit: number
         food: number
     }
+    scores: Array<{ playerNumber: number; food: number; playerName: string }>
 }
 class App extends React.Component {
     state: ReactState = {
@@ -63,6 +65,7 @@ class App extends React.Component {
             food: 0,
             speed: 0,
         },
+        scores: [],
     }
     componentDidMount() {
         window.appSetState = (s: any) => this.setState(s)
@@ -80,6 +83,8 @@ class App extends React.Component {
                 navigate('upgrades')
             } else if (gameStatus === 'PLAYING') {
                 navigate('/game')
+            } else if (gameStatus === 'FINISHED') {
+                navigate('/finished')
             }
         }
     }
@@ -101,10 +106,12 @@ class App extends React.Component {
                                 ),
                             )
                         }}
+                        isConnected={this.state.serverConnected}
                         players={this.state.players}
                     />
                     <UpgradesMenu path="/upgrades" clientState={this.state} />
                     <GameScreen path="/game" />
+                    <GameOverScreen path="/finished" {...this.state} />
                 </Router>
             </div>
         )
@@ -130,14 +137,22 @@ class Header extends React.Component {
     }
 }
 class PartyScreen extends React.Component<
-    RouteComponentProps & { players: Array<Player>; setPlayerName: Function }
+    RouteComponentProps & {
+        players: Array<Player>
+        setPlayerName: Function
+        isConnected: boolean
+    }
 > {
     state = {}
     componentDidMount() {
+        const { players, setPlayerName, isConnected } = this.props
         if (
-            !this.props.players.some(({ peerId }) => window.peerId === peerId)
+            isConnected &&
+            !players.some(({ peerId }) => window.peerId === peerId)
         ) {
-            this.props.setPlayerName(prompt('What is your player name?'))
+            setPlayerName(prompt('What is your player name?'))
+        } else {
+            setTimeout(() => this.componentDidMount(), 1000)
         }
     }
 
@@ -176,6 +191,55 @@ class PartyScreen extends React.Component<
                             player {i + 1}: {playerName}
                         </li>
                     ))}
+                </ul>
+            </div>
+        )
+    }
+}
+
+class GameOverScreen extends React.Component<RouteComponentProps & ReactState> {
+    state = {}
+
+    render() {
+        const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
+        const winnerColor =
+            playerColors[this.props.scores?.[0]?.playerNumber - 1]
+        const winnerName = this.props.scores?.[0]?.playerName
+
+        return (
+            <div
+                className="partyScreen"
+                style={{
+                    width: '100%',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                }}
+            >
+                <Header />
+                <h1
+                    style={{
+                        fontSize: 32,
+                        fontFamily,
+                        color: winnerColor,
+                    }}
+                >
+                    {winnerName} Wins!
+                </h1>
+                <ul id="player-list">
+                    {this.props.scores.map(
+                        ({ playerName, food, playerNumber }) => (
+                            <li
+                                className={'player player-' + playerNumber}
+                                style={{
+                                    color: playerColors[playerNumber - 1],
+                                    paddingBottom: '15',
+                                }}
+                                key={playerNumber}
+                            >
+                                {playerName}: {food}
+                            </li>
+                        ),
+                    )}
                 </ul>
             </div>
         )
