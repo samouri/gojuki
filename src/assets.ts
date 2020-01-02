@@ -28,6 +28,7 @@ type sounds = {
     'pickup-food': HTMLAudioElement
     'returned-to-base': HTMLAudioElement
     'stuck-in-goo': HTMLAudioElement
+    play: HTMLAudioElement
 }
 
 export const sounds: sounds = mapValues(soundsUrls, src => new Audio(src))
