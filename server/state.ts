@@ -36,6 +36,11 @@ export type HEARTBEAT_MESSAGE = {
     clientTick: number
 }
 
+export type START_GAME_MESSAGE = {
+    type: 'START_GAME'
+    partyId: string
+}
+
 export type CLIENT_TICK_MESSAGE = {
     type: 'CLIENT_TICK'
     inputs: Array<[number, PlayerInput]>
@@ -51,6 +56,7 @@ export type Message =
     | PLAYER_UPGRADE_MESSAGE
     | CLIENT_TICK_MESSAGE
     | HEARTBEAT_MESSAGE
+    | START_GAME_MESSAGE
 
 export function log(message: string): LOG_MESSAGE {
     return { type: 'LOG', message }
@@ -81,6 +87,11 @@ export function joinParty(
     return { type: 'JOIN_PARTY', playerName, peerId }
 }
 
+export function startGame(partyId: string): START_GAME_MESSAGE {
+    console.log(partyId)
+    return { type: 'START_GAME', partyId }
+}
+
 /* State Types*/
 export type stateT = {
     parties: { [id: string]: ClientState }
@@ -94,6 +105,7 @@ export type ClientState = {
     status: 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
     serverTick: number
     game: World | undefined
+    partyId: string
 }
 
 export type Player = {
@@ -109,7 +121,7 @@ let state: stateT = {
 }
 
 let partyIndex: any = {}
-let nextParty = 0
+let nextParty = 1
 export function initTicks(peerId: string) {
     state.clientTicks[peerId] = {
         ackedServerTick: -1,
@@ -130,51 +142,51 @@ function handleJoinParty(peerId: string, playerName: string) {
             players: [],
             serverTick,
             game: undefined,
+            partyId,
         }
     }
 
     const party = state.parties[partyId]
     party.players.push({ peerId, playerName })
     party.serverTick = serverTick
-    if (party.players.length === maxPartySize) {
-        party.status = 'PLAYING'
-        party.game = {
-            players: {
-                [party.players[0].peerId]: getDefaultPlayer(
-                    1,
-                    party.players[0]?.playerName ?? 'fakePlayer1',
-                ),
-                [party.players[1]?.peerId ?? '2']: getDefaultPlayer(
-                    2,
-                    party.players[1]?.playerName ?? 'fakePlayer2',
-                ),
-                [party.players[2]?.peerId ?? '3']: getDefaultPlayer(
-                    3,
-                    party.players[2]?.playerName ?? 'fakePlayer3',
-                ),
-                [party.players[3]?.peerId ?? '4']: getDefaultPlayer(
-                    4,
-                    party.players[3]?.playerName ?? 'fakePlayer4',
-                ),
-            },
-            round: 1,
-            roundStartTime: Date.now(),
-            roundTimeLeft: 30,
-            mode: 'GAMEPLAY',
-            serverTick,
-            food: [],
-            goo: [],
-        }
-        // HACK TO START AT UPGRADES
-        const upgradesHack = false
-        if (upgradesHack) {
-            party.game.mode = 'UPGRADES'
-            party.status = 'UPGRADES'
-            party.game.players[party.players[0].peerId].food = 18
-        }
-    }
     partyIndex[peerId] = partyId
     console.log(`joining: ${partyId}`)
+}
+
+export function handleStartGame(message: START_GAME_MESSAGE) {
+    const party = state.parties[message.partyId]
+    if (party.players.length > 4) {
+        throw new Error(
+            `Should never be more than 4 player, but there were: ${party.players.length}`,
+        )
+    }
+
+    party.status = 'PLAYING'
+    const gamePlayers = _.fromPairs(
+        party.players.map((player, i) => [
+            player.peerId,
+            getDefaultPlayer((i + 1) as 1 | 2 | 3 | 4, player.playerName),
+        ]),
+    )
+
+    party.game = {
+        players: gamePlayers,
+        round: 1,
+        roundStartTime: Date.now(),
+        roundTimeLeft: 30,
+        mode: 'GAMEPLAY',
+        serverTick,
+        food: [],
+        goo: [],
+    }
+
+    // HACK TO START AT UPGRADES
+    const upgradesHack = false
+    if (upgradesHack) {
+        party.game.mode = 'UPGRADES'
+        party.status = 'UPGRADES'
+        party.game.players[party.players[0].peerId].food = 18
+    }
 }
 
 export function handleMessage(message: Message, peerId: string) {
@@ -232,6 +244,8 @@ export function handleMessage(message: Message, peerId: string) {
         const game = state.parties[partyId].game
         stepPlayer(game, peerId, inputs)
         game.serverTick = serverTick
+    } else if (message.type === 'START_GAME') {
+        return handleStartGame(message as START_GAME_MESSAGE)
     }
 }
 

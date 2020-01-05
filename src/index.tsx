@@ -8,6 +8,7 @@ import {
     Message,
     ClientState,
     joinParty,
+    startGame,
     Player,
     selectUpgrade,
 } from '../server/state'
@@ -23,7 +24,8 @@ import {
 import { Instance } from 'simple-peer'
 import { localClientStep, handleServerTick } from './game'
 import { drawWorld } from './draw'
-import { playEffects } from './assets'
+import { playEffects, sounds } from './assets'
+import { sendRTC, sendTCP } from './api'
 
 declare global {
     interface Window {
@@ -99,20 +101,19 @@ class App extends React.Component {
                         isConnected={this.state.serverConnected}
                     />
                     <PartyScreen
-                        path="/party"
+                        path="/party/:partyId"
                         setPlayerName={(playerName: string) => {
-                            window.peer.send(
-                                JSON.stringify(
-                                    joinParty(window.peerId, playerName),
-                                ),
-                            )
+                            sendTCP(joinParty(window.peerId, playerName))
                         }}
                         isConnected={this.state.serverConnected}
                         players={this.state.players}
                     />
-                    <UpgradesMenu path="/upgrades" clientState={this.state} />
-                    <GameScreen path="/game" />
-                    <GameOverScreen path="/finished" {...this.state} />
+                    <UpgradesMenu
+                        path="/upgrades/:partyId"
+                        clientState={this.state}
+                    />
+                    <GameScreen path="/game/:partyId" />
+                    <GameOverScreen path="/finished/:partyId" {...this.state} />
                 </Router>
             </div>
         )
@@ -193,6 +194,16 @@ class PartyScreen extends React.Component<
                         </li>
                     ))}
                 </ul>
+                <button
+                    className="app__playbtn"
+                    onClick={() => {
+                        const partyId = window?.serverParty?.partyId
+                        sendTCP(startGame(partyId))
+                    }}
+                    disabled={!window?.serverParty?.partyId}
+                >
+                    Start game
+                </button>
             </div>
         )
     }
@@ -291,12 +302,15 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         if (this._animationCb === null) {
             this._animationCb = requestAnimationFrame(this.gameLoop)
         }
+        sounds.play.currentTime = 0
+        sounds.play.play()
     }
 
     componentWillUnmount() {
         this._isMounted = false
         window.cancelAnimationFrame(this._animationCb)
         this._animationCb = null
+        sounds.play.pause()
     }
 
     shouldComponentUpdate() {
@@ -472,19 +486,12 @@ class UpgradesMenu extends React.Component<
                                                 if (!canSell) {
                                                     return
                                                 }
-                                                fetch('/api', {
-                                                    body: JSON.stringify(
-                                                        selectUpgrade(
-                                                            name as 'Sticky Goo',
-                                                            -1,
-                                                        ),
+                                                sendTCP(
+                                                    selectUpgrade(
+                                                        name as 'Sticky Goo',
+                                                        -1,
                                                     ),
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type':
-                                                            'application/json',
-                                                    },
-                                                })
+                                                )
                                             }}
                                         >
                                             -
@@ -495,19 +502,12 @@ class UpgradesMenu extends React.Component<
                                                 if (!canBuy) {
                                                     return
                                                 }
-                                                fetch('/api', {
-                                                    body: JSON.stringify(
-                                                        selectUpgrade(
-                                                            name as 'Sticky Goo',
-                                                            1,
-                                                        ),
+                                                sendTCP(
+                                                    selectUpgrade(
+                                                        name as 'Sticky Goo',
+                                                        1,
                                                     ),
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type':
-                                                            'application/json',
-                                                    },
-                                                })
+                                                )
                                             }}
                                         >
                                             +

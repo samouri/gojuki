@@ -11,6 +11,7 @@ import {
     ClientState,
 } from '../server/state'
 import * as _ from 'lodash'
+import { sendRTC } from './api'
 
 const pressedKeys = new Set()
 window.addEventListener('keydown', event => pressedKeys.add(event.code))
@@ -39,9 +40,11 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
         window.appSetState(uiState)
     }
 
+    if (message?.party) {
+        window.serverParty = message.party
+    }
     if (message?.party?.game) {
         receiveServerWorld(message.party.game)
-        window.serverParty = message.party
     }
 }
 
@@ -168,9 +171,9 @@ let dirtyServer = true
 setInterval(() => {
     if (isConnectedPeer(window.peer)) {
         if (clientTick > ackedClientTick) {
-            window.peer.send(JSON.stringify(getClientTick()))
+            sendRTC(getClientTick())
         } else if (dirtyServer) {
-            window.peer.send(JSON.stringify(heartbeat(clientTick, serverTick)))
+            sendRTC(heartbeat(clientTick, serverTick))
         }
         dirtyServer = false
     }
