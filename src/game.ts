@@ -51,7 +51,6 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
 let clientWorld: World = {
     players: {},
     serverTick: 0,
-    mode: 'GAMEPLAY',
     round: 1,
     roundStartTime: Date.now(),
     roundTimeLeft: 60,
@@ -86,6 +85,7 @@ let cacheUIState: ReactState = {
         secondsLeft: 60,
     },
     scores: [],
+    partyId: undefined,
 }
 
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
@@ -118,6 +118,7 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
             secondsLeft: party?.game?.roundTimeLeft,
         },
         scores,
+        partyId: party?.partyId,
     }
 
     if (!_.isEqual(cacheUIState, newUIState)) {
@@ -145,13 +146,10 @@ export function receiveServerWorld(world: World) {
 
 let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
 
-export function localClientStep() {
+export function registerKeyPresses() {
     clientTick++
     const keys = getPressedKeys()
     unackedInputs.push([clientTick, keys])
-    // unackedInputs = _.takeRight(unackedInputs, 5)
-    stepPlayer(clientWorld, window.peerId, [keys])
-    return clientWorld
 }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {

@@ -13,7 +13,6 @@ export const HUD_HEIGHT = 40
 
 export type World = {
     players: { [id: string]: GamePlayer }
-    mode: 'GAMEPLAY' | 'UPGRADES' | 'PARTY'
     round: number
     roundStartTime: number
     roundTimeLeft: number
@@ -219,10 +218,6 @@ export function stepPlayer(
     playerId: string,
     inputs: Array<PlayerInput>,
 ) {
-    if (world.mode !== 'GAMEPLAY') {
-        return
-    }
-
     const gameDim = getGameDimensions()
     inputs = [...inputs]
 

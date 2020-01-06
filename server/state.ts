@@ -16,6 +16,7 @@ export type JOIN_PARTY_MESSAGE = {
     type: 'JOIN_PARTY'
     playerName: string
     peerId: string
+    partyId?: string
 }
 export type PLAYER_INPUTS = { type: 'CLIENT_INPUTS'; input: PlayerInput }
 export type PLAYER_UPGRADE_MESSAGE = {
@@ -82,9 +83,10 @@ export function selectUpgrade(
 
 export function joinParty(
     peerId: string,
+    partyId: string,
     playerName: string,
 ): JOIN_PARTY_MESSAGE {
-    return { type: 'JOIN_PARTY', playerName, peerId }
+    return { type: 'JOIN_PARTY', playerName, peerId, partyId }
 }
 
 export function startGame(partyId: string): START_GAME_MESSAGE {
@@ -129,15 +131,35 @@ export function initTicks(peerId: string) {
     }
 }
 
-function handleJoinParty(peerId: string, playerName: string) {
-    let partyId = Object.keys(state.parties).find(partyId => {
-        const party = state.parties[partyId]
-        return party.status === 'LOBBY' && party.players.length < maxPartySize
-    })
+function handleJoinParty(peerId: string, partyId: string, playerName: string) {
+    const rejoiningParty = Object.values(state.parties).find(party =>
+        party.players?.some(player => player.peerId === peerId),
+    )
+
+    if (rejoiningParty) {
+        partyIndex[peerId] = rejoiningParty.partyId
+        return { partyId }
+    }
+
+    if (state.parties[partyId] && state.parties[partyId].players.length === 4) {
+        return { err: 'Sorry, this party is full' }
+    }
 
     if (!partyId) {
+        partyId = Object.keys(state.parties).find(partyId => {
+            const party = state.parties[partyId]
+            return (
+                party.status === 'LOBBY' && party.players.length < maxPartySize
+            )
+        })
+    }
+    if (!partyId) {
         partyId = String(nextParty++)
-        state.parties[partyId] = {
+    }
+    let party = state.parties[partyId]
+
+    if (!party) {
+        party = state.parties[partyId] = {
             status: 'LOBBY',
             players: [],
             serverTick,
@@ -146,11 +168,12 @@ function handleJoinParty(peerId: string, playerName: string) {
         }
     }
 
-    const party = state.parties[partyId]
     party.players.push({ peerId, playerName })
     party.serverTick = serverTick
     partyIndex[peerId] = partyId
     console.log(`joining: ${partyId}`)
+
+    return { partyId }
 }
 
 export function handleStartGame(message: START_GAME_MESSAGE) {
@@ -174,7 +197,6 @@ export function handleStartGame(message: START_GAME_MESSAGE) {
         round: 1,
         roundStartTime: Date.now(),
         roundTimeLeft: 30,
-        mode: 'GAMEPLAY',
         serverTick,
         food: [],
         goo: [],
@@ -183,15 +205,16 @@ export function handleStartGame(message: START_GAME_MESSAGE) {
     // HACK TO START AT UPGRADES
     const upgradesHack = false
     if (upgradesHack) {
-        party.game.mode = 'UPGRADES'
         party.status = 'UPGRADES'
         party.game.players[party.players[0].peerId].food = 18
     }
 }
 
 export function handleMessage(message: Message, peerId: string) {
+    const partyId = getPartyId(peerId)
+
     if (message.type === 'JOIN_PARTY') {
-        handleJoinParty(peerId, message.playerName)
+        return handleJoinParty(peerId, message.partyId, message.playerName)
     } else if (message.type === 'LOG') {
         console.log(message.message)
     } else if (message.type === 'CLIENT_HEARTBEAT') {
@@ -202,7 +225,6 @@ export function handleMessage(message: Message, peerId: string) {
             message.serverTick,
         )
     } else if (message.type === 'PLAYER_UPGRADES') {
-        const partyId = getPartyId(peerId)
         const player = state.parties[partyId].game.players[peerId]
         const { cost, shortName } = powerups[message.powerup]
 
@@ -221,7 +243,6 @@ export function handleMessage(message: Message, peerId: string) {
             )
         }
 
-        const partyId = getPartyId(peerId)
         if (!partyId) {
             console.log(`SHOULD NOT BE RECEIVING CLIENT_TICK BEFORE GAME START`)
             return
@@ -241,9 +262,11 @@ export function handleMessage(message: Message, peerId: string) {
             .map(elem => elem[1])
         inputs = _.takeRight(inputs, 5)
 
-        const game = state.parties[partyId].game
-        stepPlayer(game, peerId, inputs)
-        game.serverTick = serverTick
+        const party = state.parties[partyId]
+        if (party.status === 'PLAYING') {
+            stepPlayer(party.game, peerId, inputs)
+            party.game.serverTick = serverTick
+        }
     } else if (message.type === 'START_GAME') {
         return handleStartGame(message as START_GAME_MESSAGE)
     }
@@ -267,10 +290,8 @@ function getPartyId(peerId: string) {
     return partyIndex[peerId]
 }
 
-function getGameDataToSend(
-    peerId: string,
-    partyId: string,
-): { party: ClientState } {
+function getGameDataToSend(peerId: string): { party: ClientState } {
+    const partyId = getPartyId(peerId)
     if (!peerId || !partyId) {
         // throw new Error(`peerId: ${peerId} hostId: ${hostId}`)
         return { party: null }
@@ -294,7 +315,7 @@ export function getTickData(peerId: string): SERVER_TICK_MESSAGE {
     return {
         type: 'SERVER_TICK',
         ...getHeartbeatDataToSend(peerId),
-        ...getGameDataToSend(peerId, getPartyId(peerId)),
+        ...getGameDataToSend(peerId),
     }
 }
 
