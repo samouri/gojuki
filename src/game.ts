@@ -11,6 +11,7 @@ import {
     ClientState,
 } from '../server/state'
 import * as _ from 'lodash'
+import { sendRTC } from './api'
 
 const pressedKeys = new Set()
 window.addEventListener('keydown', event => pressedKeys.add(event.code))
@@ -39,16 +40,17 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
         window.appSetState(uiState)
     }
 
+    if (message?.party) {
+        window.serverParty = message.party
+    }
     if (message?.party?.game) {
         receiveServerWorld(message.party.game)
-        window.serverParty = message.party
     }
 }
 
 let clientWorld: World = {
     players: {},
     serverTick: 0,
-    mode: 'GAMEPLAY',
     round: 1,
     roundStartTime: Date.now(),
     roundTimeLeft: 60,
@@ -83,6 +85,7 @@ let cacheUIState: ReactState = {
         secondsLeft: 60,
     },
     scores: [],
+    partyId: undefined,
 }
 
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
@@ -115,6 +118,7 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
             secondsLeft: party?.game?.roundTimeLeft,
         },
         scores,
+        partyId: party?.partyId,
     }
 
     if (!_.isEqual(cacheUIState, newUIState)) {
@@ -142,13 +146,10 @@ export function receiveServerWorld(world: World) {
 
 let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
 
-export function localClientStep() {
+export function registerKeyPresses() {
     clientTick++
     const keys = getPressedKeys()
     unackedInputs.push([clientTick, keys])
-    // unackedInputs = _.takeRight(unackedInputs, 5)
-    stepPlayer(clientWorld, window.peerId, [keys])
-    return clientWorld
 }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {
@@ -168,9 +169,9 @@ let dirtyServer = true
 setInterval(() => {
     if (isConnectedPeer(window.peer)) {
         if (clientTick > ackedClientTick) {
-            window.peer.send(JSON.stringify(getClientTick()))
+            sendRTC(getClientTick())
         } else if (dirtyServer) {
-            window.peer.send(JSON.stringify(heartbeat(clientTick, serverTick)))
+            sendRTC(heartbeat(clientTick, serverTick))
         }
         dirtyServer = false
     }

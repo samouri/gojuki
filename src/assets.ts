@@ -1,6 +1,8 @@
 import { mapValues } from 'lodash'
 
-import soundsUrls from '../sounds/*.wav'
+import soundsWavUrls from '../sounds/*.wav'
+import soundsMp3Urls from '../sounds/*.mp3'
+
 import imgUrls from '../img/**/*.png'
 import { GamePlayer } from '../server/game'
 
@@ -28,9 +30,13 @@ type sounds = {
     'pickup-food': HTMLAudioElement
     'returned-to-base': HTMLAudioElement
     'stuck-in-goo': HTMLAudioElement
+    play: HTMLAudioElement
 }
 
-export const sounds: sounds = mapValues(soundsUrls, src => new Audio(src))
+export const sounds: sounds = mapValues(
+    { ...soundsMp3Urls, ...soundsWavUrls },
+    src => new Audio(src),
+) as sounds
 
 const effectsHistory = {
     deployGooSound: 0,

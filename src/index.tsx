@@ -8,22 +8,17 @@ import {
     Message,
     ClientState,
     joinParty,
+    startGame,
     Player,
     selectUpgrade,
 } from '../server/state'
-import {
-    World,
-    getGameDimensions,
-    HUD_HEIGHT,
-    powerups,
-    GamePlayer,
-    PLAYER_CONFIG,
-    PlayerNumber,
-} from '../server/game'
+import { World, getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
-import { localClientStep, handleServerTick } from './game'
+import { registerKeyPresses, handleServerTick } from './game'
 import { drawWorld } from './draw'
-import { playEffects } from './assets'
+import { playEffects, sounds } from './assets'
+import { sendTCP } from './api'
+import _ = require('lodash')
 
 declare global {
     interface Window {
@@ -53,6 +48,7 @@ export type ReactState = {
         food: number
     }
     scores: Array<{ playerNumber: number; food: number; playerName: string }>
+    partyId: string
 }
 class App extends React.Component {
     state: ReactState = {
@@ -67,25 +63,29 @@ class App extends React.Component {
             speed: 0,
         },
         scores: [],
+        partyId: undefined,
     }
     componentDidMount() {
         window.appSetState = (s: any) => this.setState(s)
     }
     componentDidUpdate(_prevProps: any, prevState: ReactState) {
-        const { gameStatus } = this.state
+        const { gameStatus, partyId } = this.state
 
-        if (prevState.gameStatus !== gameStatus) {
+        if (
+            prevState.gameStatus !== gameStatus &&
+            this.state.partyId === _.last(window.location.pathname.split('/'))
+        ) {
             // TODO: add one for homescreen
             if (gameStatus === 'NOT_STARTED') {
-                navigate('/')
+                navigate(`/`)
             } else if (gameStatus === 'LOBBY') {
-                navigate('/party')
+                navigate(`/party/${partyId}`)
             } else if (gameStatus === 'UPGRADES') {
-                navigate('upgrades')
+                navigate(`/upgrades/${partyId}`)
             } else if (gameStatus === 'PLAYING') {
-                navigate('/game')
+                navigate(`/game/${partyId}`)
             } else if (gameStatus === 'FINISHED') {
-                navigate('/finished')
+                navigate(`/finished/${partyId}`)
             }
         }
     }
@@ -99,20 +99,15 @@ class App extends React.Component {
                         isConnected={this.state.serverConnected}
                     />
                     <PartyScreen
-                        path="/party"
-                        setPlayerName={(playerName: string) => {
-                            window.peer.send(
-                                JSON.stringify(
-                                    joinParty(window.peerId, playerName),
-                                ),
-                            )
-                        }}
-                        isConnected={this.state.serverConnected}
-                        players={this.state.players}
+                        path="/party/:partyId"
+                        clientState={this.state}
                     />
-                    <UpgradesMenu path="/upgrades" clientState={this.state} />
-                    <GameScreen path="/game" />
-                    <GameOverScreen path="/finished" {...this.state} />
+                    <UpgradesMenu
+                        path="/upgrades/:partyId"
+                        clientState={this.state}
+                    />
+                    <GameScreen path="/game/:partyId" />
+                    <GameOverScreen path="/finished/:partyId" {...this.state} />
                 </Router>
             </div>
         )
@@ -138,27 +133,35 @@ class Header extends React.Component {
     }
 }
 class PartyScreen extends React.Component<
-    RouteComponentProps & {
-        players: Array<Player>
-        setPlayerName: Function
-        isConnected: boolean
-    }
+    RouteComponentProps & { clientState: ReactState }
 > {
-    state = {}
     componentDidMount() {
-        const { players, setPlayerName, isConnected } = this.props
+        const { clientState, partyId } = this.props
         if (
-            isConnected &&
-            !players.some(({ peerId }) => window.peerId === peerId)
+            clientState?.serverConnected &&
+            (clientState?.partyId !== this.props.partyId ||
+                !clientState?.partyId)
         ) {
-            setPlayerName(prompt('What is your player name?'))
-        } else {
+            sendTCP(
+                joinParty(
+                    window.peerId,
+                    partyId,
+                    prompt('What is your player name'),
+                ),
+            ).catch(() => {
+                navigate('/')
+            })
+        }
+        if (!clientState?.partyId) {
             setTimeout(() => this.componentDidMount(), 1000)
         }
     }
 
     render() {
-        const { players } = this.props
+        let { players } = this.props.clientState
+        players =
+            this.props.clientState.partyId === this.props.partyId ? players : []
+
         const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
         const maxPlayers = 4
         const waitingFor = maxPlayers - players.length
@@ -193,6 +196,16 @@ class PartyScreen extends React.Component<
                         </li>
                     ))}
                 </ul>
+                <button
+                    className="app__playbtn"
+                    onClick={() => {
+                        const partyId = window?.serverParty?.partyId
+                        sendTCP(startGame(partyId))
+                    }}
+                    disabled={!window?.serverParty?.partyId}
+                >
+                    Start game
+                </button>
             </div>
         )
     }
@@ -266,9 +279,23 @@ class StartScreen extends React.Component<
                 {!this.props.isConnected ? (
                     <span className="app_loadingbtn">loading...</span>
                 ) : (
-                    <Link to="party">
-                        <button className="app__playbtn">Play</button>
-                    </Link>
+                    <button
+                        className="app__playbtn"
+                        onClick={() => {
+                            const playerName = prompt(
+                                'What is your player name?',
+                            )
+                            sendTCP(
+                                joinParty(window.peerId, undefined, playerName),
+                            )
+                                .then(resp => resp.json())
+                                .then(({ partyId }) => {
+                                    navigate(`/party/${partyId}`)
+                                })
+                        }}
+                    >
+                        Play
+                    </button>
                 )}
                 <div style={{ flexDirection: 'row', paddingTop: '30px' }}>
                     <InfoButton content={HowToPlay}>How to play</InfoButton>
@@ -291,12 +318,15 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         if (this._animationCb === null) {
             this._animationCb = requestAnimationFrame(this.gameLoop)
         }
+        sounds.play.currentTime = 0
+        sounds.play.play()
     }
 
     componentWillUnmount() {
         this._isMounted = false
         window.cancelAnimationFrame(this._animationCb)
         this._animationCb = null
+        sounds.play.pause()
     }
 
     shouldComponentUpdate() {
@@ -313,7 +343,7 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         }
 
         // update model
-        localClientStep()
+        registerKeyPresses()
         let world = window.serverParty?.game
 
         // render
@@ -472,19 +502,12 @@ class UpgradesMenu extends React.Component<
                                                 if (!canSell) {
                                                     return
                                                 }
-                                                fetch('/api', {
-                                                    body: JSON.stringify(
-                                                        selectUpgrade(
-                                                            name as 'Sticky Goo',
-                                                            -1,
-                                                        ),
+                                                sendTCP(
+                                                    selectUpgrade(
+                                                        name as 'Sticky Goo',
+                                                        -1,
                                                     ),
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type':
-                                                            'application/json',
-                                                    },
-                                                })
+                                                )
                                             }}
                                         >
                                             -
@@ -495,19 +518,12 @@ class UpgradesMenu extends React.Component<
                                                 if (!canBuy) {
                                                     return
                                                 }
-                                                fetch('/api', {
-                                                    body: JSON.stringify(
-                                                        selectUpgrade(
-                                                            name as 'Sticky Goo',
-                                                            1,
-                                                        ),
+                                                sendTCP(
+                                                    selectUpgrade(
+                                                        name as 'Sticky Goo',
+                                                        1,
                                                     ),
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type':
-                                                            'application/json',
-                                                    },
-                                                })
+                                                )
                                             }}
                                         >
                                             +

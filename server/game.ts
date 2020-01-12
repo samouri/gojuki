@@ -13,7 +13,6 @@ export const HUD_HEIGHT = 40
 
 export type World = {
     players: { [id: string]: GamePlayer }
-    mode: 'GAMEPLAY' | 'UPGRADES' | 'PARTY'
     round: number
     roundStartTime: number
     roundTimeLeft: number
@@ -129,12 +128,9 @@ export function getDefaultPlayer(
     playerName: string,
 ): GamePlayer {
     return {
+        ...getDefaultPosition(playerNum),
         playerNumber: playerNum,
         playerName,
-        x: PLAYER_CONFIG[playerNum].startPosition.x,
-        y: PLAYER_CONFIG[playerNum].startPosition.y,
-        v: 0,
-        rotation: PLAYER_CONFIG[playerNum].startPosition.rotation,
         friction: 0.9,
         turnSpeed: 0.1,
         acceleration: 1.0,
@@ -159,6 +155,15 @@ export function getDefaultPlayer(
     }
 }
 
+export function getDefaultPosition(playerNum: 1 | 2 | 3 | 4) {
+    return {
+        x: PLAYER_CONFIG[playerNum].startPosition.x,
+        y: PLAYER_CONFIG[playerNum].startPosition.y,
+        rotation: PLAYER_CONFIG[playerNum].startPosition.rotation,
+        v: 0,
+    }
+}
+
 /*
  * Manages events that are directly controlled by time without any user input.
  * For example:
@@ -169,15 +174,12 @@ export function getDefaultPlayer(
 export function stepWorld(party: ClientState, serverTick: number) {
     const world: World = party.game
     const dt = Date.now() - world.roundStartTime
-    world.roundTimeLeft = Math.floor(60 - dt / 1000)
+    const roundTime = party.status === 'PLAYING' ? 60 : 30
+    world.roundTimeLeft = Math.floor(roundTime - dt / 1000)
 
-    const secondsSinceRoundStart = dt / 1000
     const MAX_FOOD = 40
 
-    if (
-        world.food.length < MAX_FOOD &&
-        secondsSinceRoundStart * 2 > world.food.length
-    ) {
+    while (world.food.length < MAX_FOOD) {
         world.food.push({
             x: Math.floor(Math.random() * getGameDimensions().width),
             y: Math.floor(Math.random() * getGameDimensions().height),
@@ -190,6 +192,12 @@ export function stepWorld(party: ClientState, serverTick: number) {
     if (world.roundTimeLeft <= 0) {
         // ROUND 3 alert
         if (party.status === 'UPGRADES') {
+            // reset positions
+            party.game.players = _.mapValues(party.game.players, player => ({
+                ...getDefaultPosition(player.playerNumber),
+                ...player,
+            }))
+
             party.status = 'PLAYING'
             party.serverTick = serverTick
             world.roundStartTime = Date.now()
