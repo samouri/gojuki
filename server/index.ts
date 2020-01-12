@@ -30,7 +30,9 @@ app.post('/signal', (req, res) => {
 })
 
 app.post('/api', (req, res) => {
-    res.json(handleMessage(req.body as Message, req.sessionID))
+    const resp = handleMessage(req.body as Message, req.sessionID)
+    console.log(JSON.stringify(resp))
+    res.json(resp)
 })
 
 app.get('/*', (req, res) =>

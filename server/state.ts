@@ -90,7 +90,6 @@ export function joinParty(
 }
 
 export function startGame(partyId: string): START_GAME_MESSAGE {
-    console.log(partyId)
     return { type: 'START_GAME', partyId }
 }
 
@@ -131,14 +130,22 @@ export function initTicks(peerId: string) {
     }
 }
 
-function handleJoinParty(peerId: string, partyId: string, playerName: string) {
-    const rejoiningParty = Object.values(state.parties).find(party =>
-        party.players?.some(player => player.peerId === peerId),
-    )
+function handleJoinParty(
+    peerId: string,
+    partyId: string,
+    playerName: string,
+): { partyId: string } | { err: string } {
+    if (!partyId) {
+        const rejoiningParty = Object.values(state.parties).find(
+            party =>
+                party.players?.some(player => player.peerId === peerId) &&
+                party.status !== 'FINISHED',
+        )
 
-    if (rejoiningParty) {
-        partyIndex[peerId] = rejoiningParty.partyId
-        return { partyId }
+        if (rejoiningParty) {
+            partyIndex[peerId] = rejoiningParty.partyId
+            return { partyId: rejoiningParty.partyId }
+        }
     }
 
     if (state.parties[partyId] && state.parties[partyId].players.length === 4) {
@@ -179,9 +186,16 @@ function handleJoinParty(peerId: string, partyId: string, playerName: string) {
 export function handleStartGame(message: START_GAME_MESSAGE) {
     const party = state.parties[message.partyId]
     if (party.players.length > 4) {
-        throw new Error(
+        console.error(
             `Should never be more than 4 player, but there were: ${party.players.length}`,
         )
+        return
+    }
+    if (party.status !== 'LOBBY') {
+        console.error(
+            `Can only start a game that has not already been started. PartyId: ${message.partyId}`,
+        )
+        return
     }
 
     party.status = 'PLAYING'
@@ -238,9 +252,9 @@ export function handleMessage(message: Message, peerId: string) {
         return player.powerups
     } else if (message.type === 'CLIENT_TICK') {
         if (message.clientTick <= state.clientTicks[peerId].clientTick) {
-            console.log(
-                `dupe or outdated message because of outdated clientTick: ${message.clientTick}`,
-            )
+            // console.log(
+            //     `dupe or outdated message because of outdated clientTick: ${message.clientTick}`,
+            // )
         }
 
         if (!partyId) {

@@ -174,7 +174,8 @@ export function getDefaultPosition(playerNum: 1 | 2 | 3 | 4) {
 export function stepWorld(party: ClientState, serverTick: number) {
     const world: World = party.game
     const dt = Date.now() - world.roundStartTime
-    world.roundTimeLeft = Math.floor(60 - dt / 1000)
+    const roundTime = party.status === 'PLAYING' ? 60 : 30
+    world.roundTimeLeft = Math.floor(roundTime - dt / 1000)
 
     const MAX_FOOD = 40
 
