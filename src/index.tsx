@@ -6,12 +6,12 @@ import './style.css'
 import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
 import {
     Message,
-    ClientState,
     joinParty,
     startGame,
     Player,
     selectUpgrade,
-    GameStatus,
+    PartyStatus,
+    PartyState,
 } from '../server/state'
 import { World, getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
@@ -27,7 +27,7 @@ declare global {
         peerId: string
         SimplePeer: any
         appSetState: any
-        serverParty: ClientState
+        serverParty: PartyState
         uiState: ReactState
     }
 }
@@ -39,7 +39,7 @@ const fontFamily = "'Press Start 2P', cursive"
 export type ReactState = {
     serverConnected: boolean
     players: Array<Player>
-    gameStatus: GameStatus
+    gameStatus: PartyStatus
     upgradesScreen: {
         secondsLeft: number
         goo: number

@@ -3,7 +3,7 @@
  * This means only the model (state).
  */
 import * as _ from 'lodash'
-import { ClientState, Player } from './state'
+import { PartyStatus, Player, PartyState } from './state'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -171,7 +171,7 @@ export function getDefaultPosition(playerNum: 1 | 2 | 3 | 4) {
  *   - Time management
  *   - Round
  */
-export function stepWorld(party: ClientState, serverTick: number) {
+export function stepWorld(party: PartyState, serverTick: number) {
     const world: World = party.game
     const dt = Date.now() - world.roundStartTime
     const roundTime = party.status === 'PLAYING' ? 60 : 30

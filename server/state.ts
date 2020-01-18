@@ -27,7 +27,7 @@ export type PLAYER_UPGRADE_MESSAGE = {
 }
 export type SERVER_TICK_MESSAGE = {
     type: 'SERVER_TICK'
-    party: null | ClientState
+    party: null | PartyState
     serverTick: number
     clientTick: number
 }
@@ -109,22 +109,22 @@ export function startGame(partyId: string): START_GAME_MESSAGE {
 
 /* State Types*/
 export type stateT = {
-    parties: { [id: string]: ClientState }
+    parties: { [id: string]: PartyState }
     clientTicks: {
         [id: string]: { clientTick: number; ackedServerTick: number }
     }
 }
 
-export type GameStatus =
+export type PartyStatus =
     | 'NOT_STARTED'
     | 'LOBBY'
     | 'PLAYING'
     | 'FINISHED'
     | 'UPGRADES'
     | 'TEST'
-export type ClientState = {
+export type PartyState = {
     players: Array<Player>
-    status: GameStatus
+    status: PartyStatus
     serverTick: number
     game: World | undefined
     partyId: string
@@ -330,7 +330,7 @@ function getPartyId(peerId: string) {
     return partyIndex[peerId]
 }
 
-function getGameDataToSend(peerId: string): { party: ClientState } {
+function getGameDataToSend(peerId: string): { party: PartyState } {
     const partyId = getPartyId(peerId)
     if (!peerId || !partyId) {
         // throw new Error(`peerId: ${peerId} hostId: ${hostId}`)

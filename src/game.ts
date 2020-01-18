@@ -8,8 +8,7 @@ import {
     CLIENT_TICK_MESSAGE,
     SERVER_TICK_MESSAGE,
     heartbeat,
-    ClientState,
-    GameStatus,
+    PartyStatus,
 } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC } from './api'
