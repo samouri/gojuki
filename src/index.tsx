@@ -11,10 +11,11 @@ import {
     startGame,
     Player,
     selectUpgrade,
+    GameStatus,
 } from '../server/state'
 import { World, getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
-import { registerKeyPresses, handleServerTick } from './game'
+import { registerKeyPresses, handleServerTick, initialUIState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
 import { sendTCP } from './api'
@@ -27,8 +28,7 @@ declare global {
         SimplePeer: any
         appSetState: any
         serverParty: ClientState
-        serverWorld: World
-        clientWorld: World
+        uiState: ReactState
     }
 }
 
@@ -39,7 +39,7 @@ const fontFamily = "'Press Start 2P', cursive"
 export type ReactState = {
     serverConnected: boolean
     players: Array<Player>
-    gameStatus: 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
+    gameStatus: GameStatus
     upgradesScreen: {
         secondsLeft: number
         goo: number
@@ -51,20 +51,8 @@ export type ReactState = {
     partyId: string
 }
 class App extends React.Component {
-    state: ReactState = {
-        serverConnected: false,
-        players: [],
-        gameStatus: 'NOT_STARTED',
-        upgradesScreen: {
-            secondsLeft: 0,
-            goo: 0,
-            carryLimit: 0,
-            food: 0,
-            speed: 0,
-        },
-        scores: [],
-        partyId: undefined,
-    }
+    state: ReactState = initialUIState
+
     componentDidMount() {
         window.appSetState = (s: any) => this.setState(s)
     }
@@ -84,6 +72,8 @@ class App extends React.Component {
                 navigate(`/upgrades/${partyId}`)
             } else if (gameStatus === 'PLAYING') {
                 navigate(`/game/${partyId}`)
+            } else if (gameStatus === 'TEST') {
+                navigate(`/test/${partyId}`)
             } else if (gameStatus === 'FINISHED') {
                 navigate(`/finished/${partyId}`)
             }
@@ -106,7 +96,14 @@ class App extends React.Component {
                         path="/upgrades/:partyId"
                         clientState={this.state}
                     />
-                    <GameScreen path="/game/:partyId" />
+                    <GameScreen
+                        path="/game/:partyId"
+                        clientState={this.state}
+                    />
+                    <GameScreen
+                        path="/test/:partyId"
+                        clientState={this.state}
+                    />
                     <GameOverScreen path="/finished/:partyId" {...this.state} />
                 </Router>
             </div>
@@ -132,33 +129,51 @@ class Header extends React.Component {
         )
     }
 }
+
+function shouldJoinParty(state: ReactState, partyId: string) {
+    const isConnected = state?.serverConnected
+    return isConnected && !state?.partyId
+}
+
+async function sleep(ms: number) {
+    return new Promise(res => setTimeout(res, ms))
+}
+
+/* partyId refers to the one in the URL */
+function ensureInParty(partyId: string): Promise<void> {
+    const state = window?.uiState
+    if (state?.partyId) {
+        return Promise.resolve()
+    }
+
+    if (shouldJoinParty(state, partyId)) {
+        const test = window.location.pathname.includes('test')
+        sendTCP(
+            joinParty(
+                window.peerId,
+                partyId,
+                prompt('What is your player name'),
+                test,
+            ),
+        ).catch(err => {
+            console.error(err)
+            navigate('/')
+        })
+    }
+    console.log('still connecting')
+
+    return sleep(400).then(() => ensureInParty(partyId))
+}
+
 class PartyScreen extends React.Component<
-    RouteComponentProps & { clientState: ReactState }
+    RouteComponentProps<{ partyId: string }> & { clientState: ReactState }
 > {
     componentDidMount() {
-        const { clientState, partyId } = this.props
-        if (
-            clientState?.serverConnected &&
-            (clientState?.partyId !== this.props.partyId ||
-                !clientState?.partyId)
-        ) {
-            sendTCP(
-                joinParty(
-                    window.peerId,
-                    partyId,
-                    prompt('What is your player name'),
-                ),
-            ).catch(() => {
-                navigate('/')
-            })
-        }
-        if (!clientState?.partyId) {
-            setTimeout(() => this.componentDidMount(), 1000)
-        }
+        ensureInParty(this.props.partyId)
     }
 
     render() {
-        let { players } = this.props.clientState
+        let { players, partyId } = this.props.clientState
         players =
             this.props.clientState.partyId === this.props.partyId ? players : []
 
@@ -199,10 +214,9 @@ class PartyScreen extends React.Component<
                 <button
                     className="app__playbtn"
                     onClick={() => {
-                        const partyId = window?.serverParty?.partyId
                         sendTCP(startGame(partyId))
                     }}
-                    disabled={!window?.serverParty?.partyId}
+                    disabled={!partyId}
                 >
                     Start game
                 </button>
@@ -306,7 +320,9 @@ class StartScreen extends React.Component<
     }
 }
 
-class GameScreen extends React.Component<RouteComponentProps & any> {
+class GameScreen extends React.Component<
+    RouteComponentProps<{ partyId: string }> & { clientState: ReactState }
+> {
     // ctx: CanvasRenderingContext2D
     canvas: HTMLCanvasElement
     lastTime: number
@@ -318,8 +334,13 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         if (this._animationCb === null) {
             this._animationCb = requestAnimationFrame(this.gameLoop)
         }
-        sounds.play.currentTime = 0
-        sounds.play.play()
+        // TODO: defer these to the first real draw after server connection
+        if (this.props.clientState.serverConnected) {
+            sounds.play.currentTime = 0
+            sounds.play.play()
+        }
+
+        ensureInParty(this.props.partyId)
     }
 
     componentWillUnmount() {
@@ -377,11 +398,6 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
                         canvas.width = width
                         canvas.height = height
                         this.canvas = canvas
-                        if (!this._animationCb) {
-                            this._animationCb = requestAnimationFrame(
-                                this.gameLoop,
-                            )
-                        }
                     }}
                 />
             </div>

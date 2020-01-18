@@ -9,6 +9,7 @@ import {
     SERVER_TICK_MESSAGE,
     heartbeat,
     ClientState,
+    GameStatus,
 } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC } from './api'
@@ -48,32 +49,7 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
     }
 }
 
-let clientWorld: World = {
-    players: {},
-    serverTick: 0,
-    round: 1,
-    roundStartTime: Date.now(),
-    roundTimeLeft: 60,
-    food: [],
-    goo: [],
-}
-
-// function pathMemo(fn: Function, paths: Array<string>) {
-//     let prevVals: Array<any> = []
-//     let memo: any = null
-//     return function(obj: any) {
-//         let currVals = paths.map(path => obj[path])
-//         for (let i = 0; i < currVals.length; i++) {
-//             if (currVals[i] !== prevVals[i]) {
-//                 memo = fn(obj)
-//                 break
-//             }
-//         }
-//         return memo
-//     }
-// }
-
-let cacheUIState: ReactState = {
+export const initialUIState: ReactState = {
     serverConnected: false,
     players: [],
     gameStatus: 'NOT_STARTED',
@@ -88,9 +64,12 @@ let cacheUIState: ReactState = {
     partyId: undefined,
 }
 
+let cacheUIState: ReactState = { ...initialUIState }
+window.uiState = cacheUIState
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
     const party = message.party
 
+    // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
     if (!party && cacheUIState.serverConnected) {
         return cacheUIState
     }
@@ -98,7 +77,7 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
     const thisPlayer = party?.game?.players[window.peerId]
     const scores = Object.entries(party?.game?.players ?? {})
         .sort((x, y) => y[1].food - x[1].food)
-        .map(([peerId, player]) => {
+        .map(([_peerId, player]) => {
             return {
                 playerName: player.playerName,
                 food: player.food,
@@ -123,6 +102,7 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
 
     if (!_.isEqual(cacheUIState, newUIState)) {
         cacheUIState = newUIState
+        window.uiState = cacheUIState
         return cacheUIState
     }
 
@@ -133,15 +113,7 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
 // 2. Update the world with all of the new state.
 export function receiveServerWorld(world: World) {
     // console.log('recieving world!! ', world)
-    window.serverWorld = world
     unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
-
-    clientWorld = _.cloneDeep(world)
-    // stepPlayer(
-    //     clientWorld,
-    //     window.peerId,
-    //     unackedInputs.map(elem => elem[1]),
-    // )
 }
 
 let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
