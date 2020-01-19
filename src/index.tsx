@@ -20,6 +20,7 @@ import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
 import { sendTCP } from './api'
 import _ = require('lodash')
+import { sleep } from './timer'
 
 declare global {
     interface Window {
@@ -133,10 +134,6 @@ class Header extends React.Component {
 function shouldJoinParty(state: ReactState, partyId: string) {
     const isConnected = state?.serverConnected
     return isConnected && !state?.partyId
-}
-
-async function sleep(ms: number) {
-    return new Promise(res => setTimeout(res, ms))
 }
 
 /* partyId refers to the one in the URL */
