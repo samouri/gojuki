@@ -13,6 +13,7 @@ import {
 } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC } from './api'
+import { setCorrectingInterval } from './timer'
 
 const pressedKeys = new Set()
 window.addEventListener('keydown', event => pressedKeys.add(event.code))
@@ -106,12 +107,6 @@ function getUIState(party: PartyState): ReactState {
 
 let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
 
-export function registerKeyPresses() {
-    clientTick++
-    const keys = getPressedKeys()
-    unackedInputs.push([clientTick, keys])
-}
-
 export function getClientTick(): CLIENT_TICK_MESSAGE {
     return {
         type: 'CLIENT_TICK',
@@ -126,7 +121,7 @@ let ackedClientTick = -1
 let serverTick = -1
 let dirtyServer = true
 
-setInterval(() => {
+setCorrectingInterval(() => {
     if (isConnectedPeer(window.peer)) {
         if (clientTick > ackedClientTick) {
             sendRTC(getClientTick())
@@ -134,6 +129,16 @@ setInterval(() => {
             sendRTC(heartbeat(clientTick, serverTick))
         }
         dirtyServer = false
+    }
+
+    const shouldRegisterKeypress =
+        window.serverParty?.status === 'PLAYING' ||
+        window.serverParty?.status === 'TEST'
+
+    if (shouldRegisterKeypress) {
+        clientTick++
+        const keys = getPressedKeys()
+        unackedInputs.push([clientTick, keys])
     }
 }, 16)
 

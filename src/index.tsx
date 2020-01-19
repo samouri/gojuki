@@ -15,7 +15,7 @@ import {
 } from '../server/state'
 import { World, getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
-import { registerKeyPresses, handleServerTick, initialUIState } from './game'
+import { handleServerTick, initialUIState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
 import { sendTCP } from './api'
@@ -360,8 +360,6 @@ class GameScreen extends React.Component<
             return
         }
 
-        // update model
-        registerKeyPresses()
         let world = window.serverParty?.game
 
         // render

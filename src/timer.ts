@@ -15,7 +15,8 @@ export function setCorrectingInterval(fn: Function, waitMs: number): number {
 
     let nextTime = Date.now() + waitMs
     const timer = async () => {
-        while (intervals.has(nextId)) {
+        let id = nextId
+        while (intervals.has(id)) {
             await sleep(nextTime - Date.now())
             nextTime += waitMs
             fn()
