@@ -9,6 +9,7 @@ import {
     SERVER_TICK_MESSAGE,
     heartbeat,
     PartyStatus,
+    PartyState,
 } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC } from './api'
@@ -35,17 +36,14 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
     ackedClientTick = Math.max(ackedClientTick, message.clientTick)
     dirtyServer = true
 
-    const uiState = getUIState(message)
-    if (uiState) {
-        window.appSetState(uiState)
-    }
-
     if (message?.party) {
         window.serverParty = message.party
+        const uiState = getUIState(window.serverParty)
+        if (uiState) {
+            window.appSetState(uiState)
+        }
     }
-    if (message?.party?.game) {
-        receiveServerWorld(message.party.game)
-    }
+    unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
 }
 
 export const initialUIState: ReactState = {
@@ -65,9 +63,7 @@ export const initialUIState: ReactState = {
 
 let cacheUIState: ReactState = { ...initialUIState }
 window.uiState = cacheUIState
-function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
-    const party = message.party
-
+function getUIState(party: PartyState): ReactState {
     // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
     if (!party && cacheUIState.serverConnected) {
         return cacheUIState
@@ -106,13 +102,6 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
     }
 
     return null
-}
-
-// 1. Figure out which inputs can be discarded
-// 2. Update the world with all of the new state.
-export function receiveServerWorld(world: World) {
-    // console.log('recieving world!! ', world)
-    unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
 }
 
 let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
