@@ -13,7 +13,7 @@ import {
     PartyStatus,
     PartyState,
 } from '../server/state'
-import { World, getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
+import { getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
 import { handleServerTick, initialUIState } from './game'
 import { drawWorld } from './draw'
