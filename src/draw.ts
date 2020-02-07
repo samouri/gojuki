@@ -7,6 +7,7 @@ import {
     Rectangle,
 } from '../server/game'
 import { sounds, images } from './assets'
+import { createContext } from 'react'
 const debugMode = true
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
@@ -37,10 +38,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: GamePlayer) {
     ctx.translate(-player.x, -(player.y + HUD_HEIGHT))
 }
 
-function drawFood(
-    ctx: CanvasRenderingContext2D,
-    { x, y, width, height }: Rectangle,
-) {
+function drawFood(ctx: CanvasRenderingContext2D, { x, y, width, height }: Rectangle) {
     ctx.drawImage(images.food, x, y + HUD_HEIGHT, width, height)
 }
 
@@ -65,16 +63,13 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     ctx.fillStyle = 'white'
     ctx.font = '12px Arial'
     ctx.fillText(
-        `Food remaining: ${player.carriedFood}/${player.powerups.carryLimit +
-            5}      Sticky Goo: ${player.powerups.goo}`,
+        `Food remaining: ${player.carriedFood}/${player.powerups.carryLimit + 5}      Sticky Goo: ${
+            player.powerups.goo
+        }`,
         20,
         25,
     )
-    ctx.fillText(
-        `ROUND: ${world.round}`,
-        getGameDimensions().width / 2 - 50,
-        25,
-    )
+    ctx.fillText(`ROUND: ${world.round}`, getGameDimensions().width / 2 - 50, 25)
     ctx.fillText(
         `Time left: ${Math.floor(world.roundTimeLeft)}`,
         getGameDimensions().width - 100,
@@ -82,6 +77,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     )
 
     if (Date.now() - player.timings.carryLimitReached < 1000) {
+        ctx.save()
         ctx.fillStyle = 'white'
         ctx.font = '20px Arial'
         ctx.fillText(
@@ -89,11 +85,12 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
             getGameDimensions().width / 2 - 160,
             getGameDimensions().height / 2,
         )
+        ctx.restore()
     }
 
     if (debugMode) {
-        ctx.fillText(`FPS: tbd`, getGameDimensions().width - 100, 50)
-        ctx.fillText(`PING: tbd`, getGameDimensions().width - 100, 50)
+        ctx.fillText(`FPS: tbd`, getGameDimensions().width - 100, 60)
+        ctx.fillText(`PING: tbd`, getGameDimensions().width - 100, 75)
     }
     ctx.restore()
 }
@@ -106,21 +103,12 @@ function drawArena(ctx: CanvasRenderingContext2D, players: Array<GamePlayer>) {
     players.forEach(player => {
         const cfg = PLAYER_CONFIG[player.playerNumber]
         ctx.fillStyle = cfg.color
-        ctx.fillRect(
-            cfg.basePosition.x,
-            cfg.basePosition.y + HUD_HEIGHT,
-            70,
-            70,
-        )
+        ctx.fillRect(cfg.basePosition.x, cfg.basePosition.y + HUD_HEIGHT, 70, 70)
 
         ctx.fillStyle = 'black'
         ctx.font = '18px Arial'
         // Player score in base
-        ctx.fillText(
-            player.food + '',
-            cfg.basePosition.x + 5,
-            cfg.basePosition.y + HUD_HEIGHT + 20,
-        )
+        ctx.fillText(player.food + '', cfg.basePosition.x + 5, cfg.basePosition.y + HUD_HEIGHT + 20)
         // Player name
         ctx.fillStyle = 'white'
         ctx.font = '14px Arial'
