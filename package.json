@@ -11,6 +11,7 @@
     "author": "@samouri, @zachlite",
     "license": "MIT",
     "devDependencies": {
+        "@babel/plugin-proposal-class-properties": "^7.8.3",
         "@babel/preset-typescript": "^7.8.3",
         "@types/express": "^4.17.0",
         "@types/express-session": "^1.15.13",

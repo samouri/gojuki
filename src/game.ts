@@ -168,5 +168,17 @@ export class GameState {
         }
     }
 
-    clientStep(input: PlayerInput) {}
+    clientStep(input: PlayerInput) {
+        const shouldRegisterKeypress =
+            this.clientState?.status === 'PLAYING' ||
+            this.clientState?.status === 'TEST'
+        if (!shouldRegisterKeypress) {
+            return
+        }
+
+        this.clientTick++
+        this.inputs.push([this.clientTick, input])
+        // TODO: implement client side prediction a-la
+        // this.clientState = stepPlayer(this.serverState, this.inputs)
+    }
 }
