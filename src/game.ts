@@ -86,11 +86,11 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
 
     if (!_.isEqual(cacheUIState, newUIState)) {
         cacheUIState = newUIState
-        window.uiState = cacheUIState
+        window.uiState = cacheUIState // TODO: why the heck am i doing this?
         return cacheUIState
     }
 
-    return null
+    return null // TODO: should i be returning null? why not cacheUIState.
 }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {
@@ -145,7 +145,7 @@ export class GameState {
     }
 
     getParty() {
-        return this.serverState
+        return this.optimizations.prediction ? this.clientState : this.serverState
     }
 
     handleInput(input: PlayerInput) {
@@ -157,6 +157,9 @@ export class GameState {
 
         this.clientTick++
         this.inputs.push([this.clientTick, input])
+        while (this.inputs.length > 5) {
+            this.inputs.shift()
+        }
 
         if (this.optimizations.prediction) {
             // TODO: implement client side prediction a-la

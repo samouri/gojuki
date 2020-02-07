@@ -102,5 +102,23 @@ describe('GameState', () => {
 
             expect(state.getInputs()).toStrictEqual([])
         })
+
+        test('should only keep around the last 5 unacked inputs', () => {
+            for (var i = 0; i < 10; i++) {
+                state.handleInput(input)
+            }
+
+            expect(state.getInputs().length).toStrictEqual(5)
+            expect(state.getInputs()[0]).toStrictEqual([5, input])
+        })
+    })
+
+    describe.skip('optimization: prediction', () => {
+        beforeEach(() => {
+            state.optimizations.prediction = true
+        })
+
+        test('should synchronously update clients state after processing inputs', () => {})
+        test('should replay all inputs from server state', () => {})
     })
 })
