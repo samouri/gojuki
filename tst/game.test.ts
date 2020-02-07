@@ -13,7 +13,7 @@ describe('GameState', () => {
 
     beforeEach(() => {
         state = new GameState()
-        state.clientState = { status: 'PLAYING' } as PartyState
+        state.clientState = state.serverState = { status: 'PLAYING' } as PartyState
     })
 
     describe('tick management', () => {
@@ -74,7 +74,7 @@ describe('GameState', () => {
         })
 
         test('discards inputs if not PLAYING', () => {
-            state.clientState = { status: 'UPGRADES' } as PartyState
+            state.clientState = state.serverState = { status: 'UPGRADES' } as PartyState
             state.handleInput(input)
             expect(state.getInputs()).toStrictEqual([])
         })
