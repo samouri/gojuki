@@ -3,7 +3,7 @@
  * This means only the model (state).
  */
 import * as _ from 'lodash'
-import { PartyStatus, Player, PartyState } from './state'
+import { PartyState } from './state'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {

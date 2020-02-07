@@ -2,13 +2,12 @@
  * Contains all the details about running a game that are client specific.
  * This includes: canvas details, event handlers, and rendering.
  */
-import { PlayerInput, World, stepPlayer, GamePlayer } from '../server/game'
+import { PlayerInput } from '../server/game'
 import { ReactState } from '../src/index'
 import {
     CLIENT_TICK_MESSAGE,
     SERVER_TICK_MESSAGE,
     heartbeat,
-    PartyStatus,
     PartyState,
 } from '../server/state'
 import * as _ from 'lodash'
@@ -39,10 +38,10 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
 
     if (message?.party) {
         window.serverParty = message.party
-        const uiState = getUIState(window.serverParty)
-        if (uiState) {
-            window.appSetState(uiState)
-        }
+    }
+    const uiState = getUIState(message)
+    if (uiState) {
+        window.appSetState(uiState)
     }
     unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
 }
@@ -64,7 +63,8 @@ export const initialUIState: ReactState = {
 
 let cacheUIState: ReactState = { ...initialUIState }
 window.uiState = cacheUIState
-function getUIState(party: PartyState): ReactState {
+function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
+    const party: PartyState = message.party
     // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
     if (!party && cacheUIState.serverConnected) {
         return cacheUIState

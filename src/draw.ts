@@ -7,6 +7,7 @@ import {
     Rectangle,
 } from '../server/game'
 import { sounds, images } from './assets'
+const debugMode = true
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
     const players = Object.values(world.players)
@@ -88,6 +89,11 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
             getGameDimensions().width / 2 - 160,
             getGameDimensions().height / 2,
         )
+    }
+
+    if (debugMode) {
+        ctx.fillText(`FPS: tbd`, getGameDimensions().width - 100, 50)
+        ctx.fillText(`PING: tbd`, getGameDimensions().width - 100, 50)
     }
     ctx.restore()
 }

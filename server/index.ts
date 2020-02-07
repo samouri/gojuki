@@ -39,7 +39,9 @@ app.get('/*', (req, res) =>
     res.sendFile(path.resolve(__dirname, '..', 'dist/index.html')),
 )
 
-app.listen(3000)
+const port = 3000
+console.log(`Load up the game at: http://localhost:${port}`)
+app.listen(port)
 
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
