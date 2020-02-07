@@ -149,3 +149,24 @@ function isConnectedPeer(peer: any) {
         (peer as any)._channel.readyState === 'open'
     )
 }
+
+export class GameState {
+    inputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
+    clientTick = -1
+    serverTick = -1
+    ackedClientTick = -1
+
+    clientState: PartyState = null
+    serverState: PartyState = null
+
+    getClientTick() {
+        return {
+            type: 'CLIENT_TICK',
+            clientTick: this.clientTick,
+            serverTick: this.serverTick,
+            inputs: this.inputs,
+        }
+    }
+
+    clientStep(input: PlayerInput) {}
+}
