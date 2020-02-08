@@ -1,6 +1,6 @@
 import { Message } from '../server/state'
 import { handleServerTick } from './game'
-import SimplePeer = require('simple-peer')
+import SimplePeer from 'simple-peer'
 
 let peer: SimplePeer.Instance
 let peerId: string
@@ -39,7 +39,7 @@ export async function initializeRTC() {
     const { signal, id } = await (await fetch('/signal')).json()
     console.log('successfully fetched signal from server')
     peerId = id
-    peer = new (window as any).SimplePeer({
+    peer = (window as any).peer = new (window as any).SimplePeer({
         trickle: false,
         channelConfig: {
             ordered: false,
@@ -69,4 +69,17 @@ export async function initializeRTC() {
 
     // get this show on the road
     peer.signal(signal)
+}
+
+export async function getRTCStats() {
+    let stats: any = (await (peer as any)._pc.getStats())
+        .values()
+        .find((x: any) => x.type === 'data-channel')
+
+    return {
+        bytesRecieved: stats.bytesReceived,
+        messagesReceived: stats.messagesReceived,
+        bytesSent: stats.bytesSent,
+        messagesSent: stats.messagesSent,
+    }
 }
