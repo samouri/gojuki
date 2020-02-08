@@ -38,13 +38,14 @@ export class Stats {
     lastPingTimes: Array<number> = []
     tickTracker: Map<number, number> = new Map()
     lastPacketDrops: Array<number> = []
+    PING_ROLLING_AVG_LENGTH = 15
     nextSend(tickId: number) {
         this.tickTracker.set(tickId, Date.now())
 
         // If we've gone a whole second without receiving a message back, start assuming we've DCed.
         if (this.tickTracker.size > 30) {
             this.lastPingTimes.push(Number.POSITIVE_INFINITY)
-            if (this.lastPingTimes.length > 10) {
+            if (this.lastPingTimes.length > this.PING_ROLLING_AVG_LENGTH) {
                 this.lastPingTimes.shift()
             }
         }
@@ -72,10 +73,10 @@ export class Stats {
             }
         }
 
-        if (this.lastPacketDrops.length > 10) {
+        if (this.lastPacketDrops.length > this.PING_ROLLING_AVG_LENGTH) {
             this.lastPacketDrops.shift()
         }
-        if (this.lastPingTimes.length > 10) {
+        if (this.lastPingTimes.length > this.PING_ROLLING_AVG_LENGTH) {
             this.lastPingTimes.shift()
         }
     }
