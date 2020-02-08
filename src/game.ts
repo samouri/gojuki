@@ -6,7 +6,7 @@ import { PlayerInput } from '../server/game'
 import { ReactState } from '../src/index'
 import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, heartbeat, PartyState } from '../server/state'
 import * as _ from 'lodash'
-import { sendRTC } from './api'
+import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
 
 const pressedKeys = new Set()
@@ -58,7 +58,7 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
         return cacheUIState
     }
 
-    const thisPlayer = party?.game?.players[window.peerId]
+    const thisPlayer = party?.game?.players[getId()]
     const scores = Object.entries(party?.game?.players ?? {})
         .sort((x, y) => y[1].food - x[1].food)
         .map(([_peerId, player]) => {
@@ -106,17 +106,14 @@ setCorrectingInterval(() => state.handleInput(getPressedKeys()), 16)
 
 // send inputs (only when necessary) at half the rate of client side updates.
 setCorrectingInterval(() => {
-    if (isConnectedPeer(window.peer)) {
-        const { clientTick, ackedClientTick } = state.getTicks()
-        if (clientTick > ackedClientTick) {
-            sendRTC(getClientTick())
-        }
+    if (!isConnected()) {
+        return
+    }
+    const { clientTick, ackedClientTick } = state.getTicks()
+    if (clientTick > ackedClientTick) {
+        sendRTC(getClientTick())
     }
 }, 32)
-
-function isConnectedPeer(peer: any) {
-    return peer && (peer as any)._channel && (peer as any)._channel.readyState === 'open'
-}
 
 export class GameState {
     inputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]

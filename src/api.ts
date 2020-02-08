@@ -5,6 +5,9 @@ import SimplePeer = require('simple-peer')
 let peer: SimplePeer.Instance
 let peerId: string
 
+export function isConnected() {
+    return peer && (peer as any)._channel && (peer as any)._channel.readyState === 'open'
+}
 export function sendTCP(json: object): Promise<any> {
     return fetch('/api', {
         body: JSON.stringify(json),
