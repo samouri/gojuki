@@ -39,7 +39,7 @@ app.get('/*', (req, res) =>
     res.sendFile(path.resolve(__dirname, '..', 'dist/index.html')),
 )
 
-const port = 3000
+const port = process.env.PORT || 3000
 console.log(`Load up the game at: http://localhost:${port}`)
 app.listen(port)
 
