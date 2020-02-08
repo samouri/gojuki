@@ -34,7 +34,7 @@
         "parcel-bundler": "^1.12.4",
         "react": "^16.8.6",
         "react-dom": "^16.8.6",
-        "simple-peer": "^9.2.1",
+        "simple-peer": "^9.6.2",
         "sweetalert2": "^8.13.0",
         "sweetalert2-react-content": "^1.1.0",
         "ts-node": "^8.3.0",

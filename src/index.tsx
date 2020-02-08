@@ -4,29 +4,18 @@ import swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
 import './style.css'
 import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
-import {
-    Message,
-    joinParty,
-    startGame,
-    Player,
-    selectUpgrade,
-    PartyStatus,
-    PartyState,
-} from '../server/state'
+import { joinParty, startGame, Player, selectUpgrade, PartyStatus } from '../server/state'
 import { getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
 import { handleServerTick, initialUIState, state as gameState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
-import { sendTCP } from './api'
+import { sendTCP, initializeRTC, getId } from './api'
 import _ = require('lodash')
 import { sleep } from './timer'
 
 declare global {
     interface Window {
-        peer: Instance
-        peerId: string
-        SimplePeer: any
         appSetState: any
         uiState: ReactState
     }
@@ -129,7 +118,7 @@ function ensureInParty(partyId: string): Promise<void> {
 
     if (shouldJoinParty(state, partyId)) {
         const test = window.location.pathname.includes('test')
-        sendTCP(joinParty(window.peerId, partyId, prompt('What is your player name'), test)).catch(
+        sendTCP(joinParty(getId(), partyId, prompt('What is your player name'), test)).catch(
             err => {
                 console.error(err)
                 navigate('/')
@@ -265,7 +254,7 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
                         className="app__playbtn"
                         onClick={() => {
                             const playerName = prompt('What is your player name?')
-                            sendTCP(joinParty(window.peerId, undefined, playerName))
+                            sendTCP(joinParty(getId(), undefined, playerName))
                                 .then(resp => resp.json())
                                 .then(({ partyId }) => {
                                     navigate(`/party/${partyId}`)
@@ -333,7 +322,7 @@ class GameScreen extends React.Component<
         // render
         let ctx = this.canvas.getContext('2d')
         drawWorld(ctx, world)
-        playEffects(world.players[window.peerId])
+        playEffects(world.players[getId()])
         requestAnimationFrame(this.gameLoop)
     }
 
@@ -515,53 +504,7 @@ class HowToPlay extends React.Component {
     }
 }
 
-async function initServerCxn() {
-    console.log('init peer cxn')
-    const { signal, id } = await (await fetch('/signal')).json()
-    console.log('successfully fetched signal from server')
-    var p = new window.SimplePeer({
-        trickle: false,
-        channelConfig: {
-            ordered: false,
-            maxRetransmits: 0,
-        },
-    })
-    window.peer = p
-    window.peerId = id
-    p.on('signal', function(data: string) {
-        console.log('sending our signal to the server')
-        fetch('/signal', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ id, signal: data }),
-            credentials: 'include',
-        })
-    })
-
-    p.on('connect', function() {
-        console.log('CONNECTED')
-    })
-
-    p.on('data', function(data: string) {
-        handleMessage(JSON.parse(data) as Message)
-    })
-
-    // get this show on the road
-    p.signal(signal)
-}
-
-function handleMessage(message: Message) {
-    if (message.type === 'LOG') {
-        console.log(message.message)
-    } else if (message.type === 'SERVER_TICK') {
-        handleServerTick(message)
-    }
-}
-
 window.onload = function init() {
-    initServerCxn().catch(err => console.error(err))
+    initializeRTC().catch(err => console.error(err))
     ReactDOM.render(<App />, document.getElementById('app'))
 }

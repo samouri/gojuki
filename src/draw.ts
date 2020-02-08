@@ -6,8 +6,8 @@ import {
     HUD_HEIGHT,
     Rectangle,
 } from '../server/game'
-import { sounds, images } from './assets'
-import { createContext } from 'react'
+import { images } from './assets'
+import { getId } from './api'
 const debugMode = true
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
@@ -55,7 +55,7 @@ function drawGoo(
 function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     ctx.save()
 
-    const player = world.players[window.peerId]
+    const player = world.players[getId()]
 
     ctx.fillStyle = '#460a20'
     ctx.fillRect(0, 0, getGameDimensions().width, HUD_HEIGHT)
