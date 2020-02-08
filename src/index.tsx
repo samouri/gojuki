@@ -11,7 +11,7 @@ import { handleServerTick, initialUIState, state as gameState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
 import { sendTCP, initializeRTC, getId } from './api'
-import _ = require('lodash')
+import * as _ from 'lodash';
 import { sleep } from './timer'
 import { stats } from './stats'
 
