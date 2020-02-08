@@ -4,31 +4,21 @@ import swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
 import './style.css'
 import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
-import {
-    Message,
-    ClientState,
-    joinParty,
-    startGame,
-    Player,
-    selectUpgrade,
-} from '../server/state'
-import { World, getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
+import { joinParty, startGame, Player, selectUpgrade, PartyStatus } from '../server/state'
+import { getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
-import { registerKeyPresses, handleServerTick } from './game'
+import { handleServerTick, initialUIState, state as gameState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
-import { sendTCP } from './api'
+import { sendTCP, initializeRTC, getId } from './api'
 import _ = require('lodash')
+import { sleep } from './timer'
+import { stats } from './stats'
 
 declare global {
     interface Window {
-        peer: Instance
-        peerId: string
-        SimplePeer: any
         appSetState: any
-        serverParty: ClientState
-        serverWorld: World
-        clientWorld: World
+        uiState: ReactState
     }
 }
 
@@ -39,7 +29,7 @@ const fontFamily = "'Press Start 2P', cursive"
 export type ReactState = {
     serverConnected: boolean
     players: Array<Player>
-    gameStatus: 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
+    gameStatus: PartyStatus
     upgradesScreen: {
         secondsLeft: number
         goo: number
@@ -51,20 +41,8 @@ export type ReactState = {
     partyId: string
 }
 class App extends React.Component {
-    state: ReactState = {
-        serverConnected: false,
-        players: [],
-        gameStatus: 'NOT_STARTED',
-        upgradesScreen: {
-            secondsLeft: 0,
-            goo: 0,
-            carryLimit: 0,
-            food: 0,
-            speed: 0,
-        },
-        scores: [],
-        partyId: undefined,
-    }
+    state: ReactState = initialUIState
+
     componentDidMount() {
         window.appSetState = (s: any) => this.setState(s)
     }
@@ -84,6 +62,8 @@ class App extends React.Component {
                 navigate(`/upgrades/${partyId}`)
             } else if (gameStatus === 'PLAYING') {
                 navigate(`/game/${partyId}`)
+            } else if (gameStatus === 'TEST') {
+                navigate(`/test/${partyId}`)
             } else if (gameStatus === 'FINISHED') {
                 navigate(`/finished/${partyId}`)
             }
@@ -94,19 +74,11 @@ class App extends React.Component {
         return (
             <div className="app">
                 <Router style={{ width: '100%', height: '100%' }}>
-                    <StartScreen
-                        path="/"
-                        isConnected={this.state.serverConnected}
-                    />
-                    <PartyScreen
-                        path="/party/:partyId"
-                        clientState={this.state}
-                    />
-                    <UpgradesMenu
-                        path="/upgrades/:partyId"
-                        clientState={this.state}
-                    />
-                    <GameScreen path="/game/:partyId" />
+                    <StartScreen path="/" isConnected={this.state.serverConnected} />
+                    <PartyScreen path="/party/:partyId" clientState={this.state} />
+                    <UpgradesMenu path="/upgrades/:partyId" clientState={this.state} />
+                    <GameScreen path="/game/:partyId" clientState={this.state} />
+                    <GameScreen path="/test/:partyId" clientState={this.state} />
                     <GameOverScreen path="/finished/:partyId" {...this.state} />
                 </Router>
             </div>
@@ -132,35 +104,43 @@ class Header extends React.Component {
         )
     }
 }
+
+function shouldJoinParty(state: ReactState, partyId: string) {
+    const isConnected = state?.serverConnected
+    return isConnected && !state?.partyId
+}
+
+/* partyId refers to the one in the URL */
+function ensureInParty(partyId: string): Promise<void> {
+    const state = window?.uiState
+    if (state?.partyId) {
+        return Promise.resolve()
+    }
+
+    if (shouldJoinParty(state, partyId)) {
+        const test = window.location.pathname.includes('test')
+        sendTCP(joinParty(getId(), partyId, prompt('What is your player name'), test)).catch(
+            err => {
+                console.error(err)
+                navigate('/')
+            },
+        )
+    }
+    console.log('still connecting')
+
+    return sleep(400).then(() => ensureInParty(partyId))
+}
+
 class PartyScreen extends React.Component<
-    RouteComponentProps & { clientState: ReactState }
+    RouteComponentProps<{ partyId: string }> & { clientState: ReactState }
 > {
     componentDidMount() {
-        const { clientState, partyId } = this.props
-        if (
-            clientState?.serverConnected &&
-            (clientState?.partyId !== this.props.partyId ||
-                !clientState?.partyId)
-        ) {
-            sendTCP(
-                joinParty(
-                    window.peerId,
-                    partyId,
-                    prompt('What is your player name'),
-                ),
-            ).catch(() => {
-                navigate('/')
-            })
-        }
-        if (!clientState?.partyId) {
-            setTimeout(() => this.componentDidMount(), 1000)
-        }
+        ensureInParty(this.props.partyId)
     }
 
     render() {
-        let { players } = this.props.clientState
-        players =
-            this.props.clientState.partyId === this.props.partyId ? players : []
+        let { players, partyId } = this.props.clientState
+        players = this.props.clientState.partyId === this.props.partyId ? players : []
 
         const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
         const maxPlayers = 4
@@ -176,9 +156,7 @@ class PartyScreen extends React.Component<
                 }}
             >
                 <Header />
-                <h1 style={{ fontSize: 32, fontFamily, color: '#e91e63' }}>
-                    Party Lobby
-                </h1>
+                <h1 style={{ fontSize: 32, fontFamily, color: '#e91e63' }}>Party Lobby</h1>
                 <h1 style={{ fontSize: 18, fontFamily, color: 'white' }}>
                     Waiting for {waitingFor} more player(s)...
                 </h1>
@@ -199,10 +177,9 @@ class PartyScreen extends React.Component<
                 <button
                     className="app__playbtn"
                     onClick={() => {
-                        const partyId = window?.serverParty?.partyId
                         sendTCP(startGame(partyId))
                     }}
-                    disabled={!window?.serverParty?.partyId}
+                    disabled={!partyId}
                 >
                     Start game
                 </button>
@@ -216,8 +193,7 @@ class GameOverScreen extends React.Component<RouteComponentProps & ReactState> {
 
     render() {
         const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
-        const winnerColor =
-            playerColors[this.props.scores?.[0]?.playerNumber - 1]
+        const winnerColor = playerColors[this.props.scores?.[0]?.playerNumber - 1]
         const winnerName = this.props.scores?.[0]?.playerName
 
         return (
@@ -240,29 +216,25 @@ class GameOverScreen extends React.Component<RouteComponentProps & ReactState> {
                     {winnerName} Wins!
                 </h1>
                 <ul id="player-list">
-                    {this.props.scores.map(
-                        ({ playerName, food, playerNumber }) => (
-                            <li
-                                className={'player player-' + playerNumber}
-                                style={{
-                                    color: playerColors[playerNumber - 1],
-                                    paddingBottom: '15',
-                                }}
-                                key={playerNumber}
-                            >
-                                {playerName}: {food}
-                            </li>
-                        ),
-                    )}
+                    {this.props.scores.map(({ playerName, food, playerNumber }) => (
+                        <li
+                            className={'player player-' + playerNumber}
+                            style={{
+                                color: playerColors[playerNumber - 1],
+                                paddingBottom: '15',
+                            }}
+                            key={playerNumber}
+                        >
+                            {playerName}: {food}
+                        </li>
+                    ))}
                 </ul>
             </div>
         )
     }
 }
 
-class StartScreen extends React.Component<
-    RouteComponentProps & { isConnected: boolean }
-> {
+class StartScreen extends React.Component<RouteComponentProps & { isConnected: boolean }> {
     render() {
         return (
             <div className="app">
@@ -282,12 +254,8 @@ class StartScreen extends React.Component<
                     <button
                         className="app__playbtn"
                         onClick={() => {
-                            const playerName = prompt(
-                                'What is your player name?',
-                            )
-                            sendTCP(
-                                joinParty(window.peerId, undefined, playerName),
-                            )
+                            const playerName = prompt('What is your player name?')
+                            sendTCP(joinParty(getId(), undefined, playerName))
                                 .then(resp => resp.json())
                                 .then(({ partyId }) => {
                                     navigate(`/party/${partyId}`)
@@ -306,10 +274,11 @@ class StartScreen extends React.Component<
     }
 }
 
-class GameScreen extends React.Component<RouteComponentProps & any> {
+class GameScreen extends React.Component<
+    RouteComponentProps<{ partyId: string }> & { clientState: ReactState }
+> {
     // ctx: CanvasRenderingContext2D
     canvas: HTMLCanvasElement
-    lastTime: number
     _isMounted: boolean
     _animationCb: number | null = null
 
@@ -318,8 +287,13 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         if (this._animationCb === null) {
             this._animationCb = requestAnimationFrame(this.gameLoop)
         }
-        sounds.play.currentTime = 0
-        sounds.play.play()
+        // TODO: defer these to the first real draw after server connection
+        if (this.props.clientState.serverConnected) {
+            sounds.play.currentTime = 0
+            sounds.play.play()
+        }
+
+        ensureInParty(this.props.partyId)
     }
 
     componentWillUnmount() {
@@ -333,23 +307,20 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
         return false
     }
 
-    gameLoop = (time: number) => {
-        const dt = time - this.lastTime
-        this.lastTime = time
-
-        if (!this.canvas || !window.serverParty?.game) {
+    gameLoop = () => {
+        const party = gameState.getParty()
+        if (!this.canvas || !party?.game) {
             requestAnimationFrame(this.gameLoop)
             return
         }
 
-        // update model
-        registerKeyPresses()
-        let world = window.serverParty?.game
+        let world = party.game
+        stats.nextFrame()
 
         // render
         let ctx = this.canvas.getContext('2d')
         drawWorld(ctx, world)
-        playEffects(world.players[window.peerId])
+        playEffects(world.players[getId()])
         requestAnimationFrame(this.gameLoop)
     }
 
@@ -377,11 +348,6 @@ class GameScreen extends React.Component<RouteComponentProps & any> {
                         canvas.width = width
                         canvas.height = height
                         this.canvas = canvas
-                        if (!this._animationCb) {
-                            this._animationCb = requestAnimationFrame(
-                                this.gameLoop,
-                            )
-                        }
                     }}
                 />
             </div>
@@ -413,12 +379,9 @@ class About extends React.Component {
         return (
             <div className="about">
                 <h1 className="about__header">About</h1>
+                <p className="about__content">Hungry, Hungry, ...Cockroaches?</p>
                 <p className="about__content">
-                    Hungry, Hungry, ...Cockroaches?
-                </p>
-                <p className="about__content">
-                    Maybe this is what insects do in your kitchen when you're
-                    sleeping.
+                    Maybe this is what insects do in your kitchen when you're sleeping.
                 </p>
                 <br />
             </div>
@@ -426,9 +389,7 @@ class About extends React.Component {
     }
 }
 
-class UpgradesMenu extends React.Component<
-    RouteComponentProps & { clientState: ReactState }
-> {
+class UpgradesMenu extends React.Component<RouteComponentProps & { clientState: ReactState }> {
     render() {
         const data = this.props.clientState.upgradesScreen
 
@@ -444,96 +405,77 @@ class UpgradesMenu extends React.Component<
                 }}
             >
                 <Header />
-                <div
-                    className="upgradesMenu__header"
-                    style={{ color: 'white' }}
-                >
+                <div className="upgradesMenu__header" style={{ color: 'white' }}>
                     <h3>
                         Food:
-                        <span style={{ color: '#e91e63', marginRight: 50 }}>
-                            {data.food}
-                        </span>
+                        <span style={{ color: '#e91e63', marginRight: 50 }}>{data.food}</span>
                     </h3>
                     <h3>
                         Time to next round:
-                        <span style={{ color: '#e91e63' }}>
-                            {' ' + data.secondsLeft + ' '}
-                        </span>
+                        <span style={{ color: '#e91e63' }}>{' ' + data.secondsLeft + ' '}</span>
                         seconds...
                     </h3>
                 </div>
                 <div className="upgradesMenu__items">
-                    {Object.entries(powerups).map(
-                        ([name, { description, shortName, cost }]) => {
-                            const canBuy = cost <= data.food
-                            const canSell = data[shortName] > 0
-                            return (
+                    {Object.entries(powerups).map(([name, { description, shortName, cost }]) => {
+                        const canBuy = cost <= data.food
+                        const canSell = data[shortName] > 0
+                        return (
+                            <div
+                                style={{
+                                    flexDirection: 'column',
+                                    backgroundColor: 'white',
+                                    width: 230,
+                                    height: 270,
+                                    margin: 20,
+                                    padding: 30,
+                                }}
+                                key={name}
+                            >
+                                <h3 style={{ height: 56 }}>{name}</h3>
+                                <strong
+                                    style={{
+                                        fontSize: 26,
+                                        color: 'rgb(233, 30, 99)',
+                                    }}
+                                >
+                                    {data[shortName]}
+                                </strong>
+                                <p style={{ height: 45 }}>{description}</p>
                                 <div
                                     style={{
-                                        flexDirection: 'column',
-                                        backgroundColor: 'white',
-                                        width: 230,
-                                        height: 270,
-                                        margin: 20,
-                                        padding: 30,
+                                        alignSelf: 'center',
+                                        marginTop: 'auto',
                                     }}
-                                    key={name}
                                 >
-                                    <h3 style={{ height: 56 }}>{name}</h3>
-                                    <strong
-                                        style={{
-                                            fontSize: 26,
-                                            color: 'rgb(233, 30, 99)',
+                                    <button
+                                        style={{ marginRight: 10 }}
+                                        disabled={!canSell}
+                                        onClick={() => {
+                                            if (!canSell) {
+                                                return
+                                            }
+                                            sendTCP(selectUpgrade(name as 'Sticky Goo', -1))
                                         }}
                                     >
-                                        {data[shortName]}
-                                    </strong>
-                                    <p style={{ height: 45 }}>{description}</p>
-                                    <div
-                                        style={{
-                                            alignSelf: 'center',
-                                            marginTop: 'auto',
+                                        -
+                                    </button>
+                                    <button
+                                        disabled={!canBuy}
+                                        onClick={() => {
+                                            if (!canBuy) {
+                                                return
+                                            }
+                                            sendTCP(selectUpgrade(name as 'Sticky Goo', 1))
                                         }}
                                     >
-                                        <button
-                                            style={{ marginRight: 10 }}
-                                            disabled={!canSell}
-                                            onClick={() => {
-                                                if (!canSell) {
-                                                    return
-                                                }
-                                                sendTCP(
-                                                    selectUpgrade(
-                                                        name as 'Sticky Goo',
-                                                        -1,
-                                                    ),
-                                                )
-                                            }}
-                                        >
-                                            -
-                                        </button>
-                                        <button
-                                            disabled={!canBuy}
-                                            onClick={() => {
-                                                if (!canBuy) {
-                                                    return
-                                                }
-                                                sendTCP(
-                                                    selectUpgrade(
-                                                        name as 'Sticky Goo',
-                                                        1,
-                                                    ),
-                                                )
-                                            }}
-                                        >
-                                            +
-                                        </button>
-                                    </div>
-                                    <p>Cost: {cost}</p>
+                                        +
+                                    </button>
                                 </div>
-                            )
-                        },
-                    )}
+                                <p>Cost: {cost}</p>
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
         )
@@ -546,15 +488,11 @@ class HowToPlay extends React.Component {
             <div className="howToPlay">
                 <h1 className="howToPlay__header">How to Play</h1>
                 <ul>
-                    <li className="howToPlay__info">
-                        Collect and return food to your base.
-                    </li>
+                    <li className="howToPlay__info">Collect and return food to your base.</li>
                     <li className="howToPlay__info">
                         Whoever has the most food after 3 rounds wins.
                     </li>
-                    <li className="howToPlay__info">
-                        Trade food for upgrades between rounds.
-                    </li>
+                    <li className="howToPlay__info">Trade food for upgrades between rounds.</li>
                     <li className="howToPlay__info">
                         Use arrow keys to move. Use space to use item.
                     </li>
@@ -564,53 +502,7 @@ class HowToPlay extends React.Component {
     }
 }
 
-async function initServerCxn() {
-    console.log('init peer cxn')
-    const { signal, id } = await (await fetch('/signal')).json()
-    console.log('successfully fetched signal from server')
-    var p = new window.SimplePeer({
-        trickle: false,
-        channelConfig: {
-            ordered: false,
-            maxRetransmits: 0,
-        },
-    })
-    window.peer = p
-    window.peerId = id
-    p.on('signal', function(data: string) {
-        console.log('sending our signal to the server')
-        fetch('/signal', {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ id, signal: data }),
-            credentials: 'include',
-        })
-    })
-
-    p.on('connect', function() {
-        console.log('CONNECTED')
-    })
-
-    p.on('data', function(data: string) {
-        handleMessage(JSON.parse(data) as Message)
-    })
-
-    // get this show on the road
-    p.signal(signal)
-}
-
-function handleMessage(message: Message) {
-    if (message.type === 'LOG') {
-        console.log(message.message)
-    } else if (message.type === 'SERVER_TICK') {
-        handleServerTick(message)
-    }
-}
-
 window.onload = function init() {
-    initServerCxn().catch(err => console.error(err))
+    initializeRTC().catch(err => console.error(err))
     ReactDOM.render(<App />, document.getElementById('app'))
 }

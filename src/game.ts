@@ -2,16 +2,13 @@
  * Contains all the details about running a game that are client specific.
  * This includes: canvas details, event handlers, and rendering.
  */
-import { PlayerInput, World, stepPlayer, GamePlayer } from '../server/game'
+import { PlayerInput } from '../server/game'
 import { ReactState } from '../src/index'
-import {
-    CLIENT_TICK_MESSAGE,
-    SERVER_TICK_MESSAGE,
-    heartbeat,
-    ClientState,
-} from '../server/state'
+import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, heartbeat, PartyState } from '../server/state'
 import * as _ from 'lodash'
-import { sendRTC } from './api'
+import { sendRTC, getId, isConnected } from './api'
+import { setCorrectingInterval } from './timer'
+import { stats } from './stats'
 
 const pressedKeys = new Set()
 window.addEventListener('keydown', event => pressedKeys.add(event.code))
@@ -29,51 +26,16 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
     if (!message) {
         throw new Error('no message!!')
     }
+    state.handleServerMessage(message)
 
     /* Update global ticks*/
-    serverTick = Math.max(serverTick, message.serverTick)
-    ackedClientTick = Math.max(ackedClientTick, message.clientTick)
-    dirtyServer = true
-
     const uiState = getUIState(message)
     if (uiState) {
         window.appSetState(uiState)
     }
-
-    if (message?.party) {
-        window.serverParty = message.party
-    }
-    if (message?.party?.game) {
-        receiveServerWorld(message.party.game)
-    }
 }
 
-let clientWorld: World = {
-    players: {},
-    serverTick: 0,
-    round: 1,
-    roundStartTime: Date.now(),
-    roundTimeLeft: 60,
-    food: [],
-    goo: [],
-}
-
-// function pathMemo(fn: Function, paths: Array<string>) {
-//     let prevVals: Array<any> = []
-//     let memo: any = null
-//     return function(obj: any) {
-//         let currVals = paths.map(path => obj[path])
-//         for (let i = 0; i < currVals.length; i++) {
-//             if (currVals[i] !== prevVals[i]) {
-//                 memo = fn(obj)
-//                 break
-//             }
-//         }
-//         return memo
-//     }
-// }
-
-let cacheUIState: ReactState = {
+export const initialUIState: ReactState = {
     serverConnected: false,
     players: [],
     gameStatus: 'NOT_STARTED',
@@ -88,17 +50,19 @@ let cacheUIState: ReactState = {
     partyId: undefined,
 }
 
+let cacheUIState: ReactState = { ...initialUIState }
+window.uiState = cacheUIState
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
-    const party = message.party
-
+    const party: PartyState = message.party
+    // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
     if (!party && cacheUIState.serverConnected) {
         return cacheUIState
     }
 
-    const thisPlayer = party?.game?.players[window.peerId]
+    const thisPlayer = party?.game?.players[getId()]
     const scores = Object.entries(party?.game?.players ?? {})
         .sort((x, y) => y[1].food - x[1].food)
-        .map(([peerId, player]) => {
+        .map(([_peerId, player]) => {
             return {
                 playerName: player.playerName,
                 food: player.food,
@@ -123,64 +87,109 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
 
     if (!_.isEqual(cacheUIState, newUIState)) {
         cacheUIState = newUIState
+        window.uiState = cacheUIState // TODO: why the heck am i doing this?
         return cacheUIState
     }
 
-    return null
-}
-
-// 1. Figure out which inputs can be discarded
-// 2. Update the world with all of the new state.
-export function receiveServerWorld(world: World) {
-    // console.log('recieving world!! ', world)
-    window.serverWorld = world
-    unackedInputs = unackedInputs.filter(elem => elem[0] >= ackedClientTick)
-
-    clientWorld = _.cloneDeep(world)
-    // stepPlayer(
-    //     clientWorld,
-    //     window.peerId,
-    //     unackedInputs.map(elem => elem[1]),
-    // )
-}
-
-let unackedInputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
-
-export function registerKeyPresses() {
-    clientTick++
-    const keys = getPressedKeys()
-    unackedInputs.push([clientTick, keys])
+    return null // TODO: should i be returning null? why not cacheUIState.
 }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {
     return {
         type: 'CLIENT_TICK',
-        clientTick,
-        serverTick,
-        inputs: unackedInputs,
+        ...state.getTicks(),
+        inputs: state.getInputs(),
     }
 }
 
-let clientTick = -1
-let ackedClientTick = -1
-let serverTick = -1
-let dirtyServer = true
+// step the game forward once every 16ms. note that this is not necessarilly in sync with the animation frames.
+setCorrectingInterval(() => state.handleInput(getPressedKeys()), 16)
 
-setInterval(() => {
-    if (isConnectedPeer(window.peer)) {
-        if (clientTick > ackedClientTick) {
-            sendRTC(getClientTick())
-        } else if (dirtyServer) {
-            sendRTC(heartbeat(clientTick, serverTick))
+// send inputs (only when necessary) at half the rate of client side updates.
+setCorrectingInterval(() => {
+    if (!isConnected()) {
+        return
+    }
+    const { clientTick, ackedClientTick } = state.getTicks()
+    if (clientTick > ackedClientTick) {
+        sendRTC(getClientTick())
+        stats.nextSend(clientTick)
+    }
+}, 32)
+
+export class GameState {
+    inputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
+    clientTick = -1
+    serverTick = -1
+    ackedClientTick = -1
+
+    clientState: PartyState = null
+    serverState: PartyState = null
+
+    optimizations = {
+        interpolation: false,
+        prediction: false,
+    }
+
+    getTicks() {
+        return {
+            clientTick: this.clientTick,
+            serverTick: this.serverTick,
+            ackedClientTick: this.ackedClientTick,
         }
-        dirtyServer = false
     }
-}, 16)
 
-function isConnectedPeer(peer: any) {
-    return (
-        peer &&
-        (peer as any)._channel &&
-        (peer as any)._channel.readyState === 'open'
-    )
+    getInputs() {
+        return this.inputs
+    }
+
+    getParty() {
+        return this.optimizations.prediction ? this.clientState : this.serverState
+    }
+
+    handleInput(input: PlayerInput) {
+        const shouldRegisterKeypress =
+            this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
+        if (!shouldRegisterKeypress) {
+            return
+        }
+
+        this.clientTick++
+        this.inputs.push([this.clientTick, input])
+        while (this.inputs.length > 5) {
+            this.inputs.shift()
+        }
+
+        if (this.optimizations.prediction) {
+            // TODO: implement client side prediction a-la
+            // this.clientState = stepPlayer(this.serverState, this.inputs)
+        }
+    }
+
+    handleServerMessage(message: SERVER_TICK_MESSAGE) {
+        if (message.serverTick < this.serverTick) {
+            return
+        }
+
+        this.serverTick = message.serverTick
+        this.serverState = message.party
+        this.ackedClientTick = message.clientTick
+        stats.nextAck(this.ackedClientTick)
+
+        // when reconnecting to a server its possible we'll want to catch up our client tick.
+        this.clientTick = Math.max(this.clientTick, this.ackedClientTick)
+        this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
+
+        if (this.optimizations.prediction) {
+            // reconcile client side predicted future w/ actual server state.
+        }
+        if (this.optimizations.interpolation) {
+            // TODO: implement interpolation. this means holding a buffer of
+            // size 1 or 2 for enemy states, and tweening them to their next position.
+            // buffer should help smooth out the visual effects of jitter.
+        }
+    }
 }
+
+export const state = new GameState()
+;(window as any).gamestate = state

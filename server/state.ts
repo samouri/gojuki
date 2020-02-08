@@ -17,6 +17,7 @@ export type JOIN_PARTY_MESSAGE = {
     playerName: string
     peerId: string
     partyId?: string
+    test?: boolean
 }
 export type PLAYER_INPUTS = { type: 'CLIENT_INPUTS'; input: PlayerInput }
 export type PLAYER_UPGRADE_MESSAGE = {
@@ -26,7 +27,7 @@ export type PLAYER_UPGRADE_MESSAGE = {
 }
 export type SERVER_TICK_MESSAGE = {
     type: 'SERVER_TICK'
-    party: null | ClientState
+    party: null | PartyState
     serverTick: number
     clientTick: number
 }
@@ -85,8 +86,21 @@ export function joinParty(
     peerId: string,
     partyId: string,
     playerName: string,
+    test?: boolean,
 ): JOIN_PARTY_MESSAGE {
-    return { type: 'JOIN_PARTY', playerName, peerId, partyId }
+    const partyMsg: JOIN_PARTY_MESSAGE = {
+        type: 'JOIN_PARTY',
+        playerName,
+        peerId,
+    }
+    if (test) {
+        partyMsg.test = test
+    }
+    if (partyId) {
+        partyMsg.partyId = partyId
+    }
+
+    return partyMsg
 }
 
 export function startGame(partyId: string): START_GAME_MESSAGE {
@@ -95,15 +109,22 @@ export function startGame(partyId: string): START_GAME_MESSAGE {
 
 /* State Types*/
 export type stateT = {
-    parties: { [id: string]: ClientState }
+    parties: { [id: string]: PartyState }
     clientTicks: {
         [id: string]: { clientTick: number; ackedServerTick: number }
     }
 }
 
-export type ClientState = {
+export type PartyStatus =
+    | 'NOT_STARTED'
+    | 'LOBBY'
+    | 'PLAYING'
+    | 'FINISHED'
+    | 'UPGRADES'
+    | 'TEST'
+export type PartyState = {
     players: Array<Player>
-    status: 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES'
+    status: PartyStatus
     serverTick: number
     game: World | undefined
     partyId: string
@@ -132,9 +153,10 @@ export function initTicks(peerId: string) {
 
 function handleJoinParty(
     peerId: string,
-    partyId: string,
-    playerName: string,
+    message: JOIN_PARTY_MESSAGE,
 ): { partyId: string } | { err: string } {
+    let { partyId, test, playerName } = message
+    // If not specifying a partyId, check to see if should rejoin an in-progress game.
     if (!partyId) {
         const rejoiningParty = Object.values(state.parties).find(
             party =>
@@ -178,7 +200,11 @@ function handleJoinParty(
     party.players.push({ peerId, playerName })
     party.serverTick = serverTick
     partyIndex[peerId] = partyId
-    console.log(`joining: ${partyId}`)
+
+    if (test) {
+        handleStartGame(startGame(partyId))
+        state.parties[partyId].status = 'TEST'
+    }
 
     return { partyId }
 }
@@ -228,7 +254,7 @@ export function handleMessage(message: Message, peerId: string) {
     const partyId = getPartyId(peerId)
 
     if (message.type === 'JOIN_PARTY') {
-        return handleJoinParty(peerId, message.partyId, message.playerName)
+        return handleJoinParty(peerId, message)
     } else if (message.type === 'LOG') {
         console.log(message.message)
     } else if (message.type === 'CLIENT_HEARTBEAT') {
@@ -277,7 +303,7 @@ export function handleMessage(message: Message, peerId: string) {
         inputs = _.takeRight(inputs, 5)
 
         const party = state.parties[partyId]
-        if (party.status === 'PLAYING') {
+        if (party.status === 'PLAYING' || party.status === 'TEST') {
             stepPlayer(party.game, peerId, inputs)
             party.game.serverTick = serverTick
         }
@@ -304,7 +330,7 @@ function getPartyId(peerId: string) {
     return partyIndex[peerId]
 }
 
-function getGameDataToSend(peerId: string): { party: ClientState } {
+function getGameDataToSend(peerId: string): { party: PartyState } {
     const partyId = getPartyId(peerId)
     if (!peerId || !partyId) {
         // throw new Error(`peerId: ${peerId} hostId: ${hostId}`)

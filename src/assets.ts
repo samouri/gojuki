@@ -46,12 +46,7 @@ const effectsHistory = {
 }
 
 export function playEffects(player: GamePlayer) {
-    const {
-        lastGooHit,
-        lastGooDeployed,
-        lastBaseReturn,
-        lastFoodEaten,
-    } = player.timings
+    const { lastGooHit, lastGooDeployed, lastBaseReturn, lastFoodEaten } = player.timings
     if (effectsHistory.stuckInGoo !== lastGooHit) {
         effectsHistory.stuckInGoo = player.timings.lastGooHit
         sounds['stuck-in-goo'].play()

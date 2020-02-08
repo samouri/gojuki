@@ -4,19 +4,25 @@
     "scripts": {
         "server": "ts-node server/index.ts",
         "ui": "parcel watch index.html",
-        "build-ui": "parcel build index.html"
+        "build-ui": "parcel build index.html",
+        "test": "jest --colors"
     },
     "keywords": [],
     "author": "@samouri, @zachlite",
     "license": "MIT",
     "devDependencies": {
+        "@babel/plugin-proposal-class-properties": "^7.8.3",
+        "@babel/preset-typescript": "^7.8.3",
         "@types/express": "^4.17.0",
         "@types/express-session": "^1.15.13",
+        "@types/jest": "^25.1.2",
         "@types/lodash": "^4.14.135",
-        "@types/reach__router": "^1.2.4",
+        "@types/reach__router": "^1.2.6",
         "@types/react": "^16.8.22",
         "@types/react-dom": "^16.8.4",
-        "@types/simple-peer": "^6.1.6"
+        "@types/simple-peer": "^6.1.6",
+        "jest": "^25.1.0",
+        "prettier": "^1.19.1"
     },
     "dependencies": {
         "@reach/router": "^1.2.1",
@@ -28,7 +34,7 @@
         "parcel-bundler": "^1.12.4",
         "react": "^16.8.6",
         "react-dom": "^16.8.6",
-        "simple-peer": "^9.2.1",
+        "simple-peer": "^9.6.2",
         "sweetalert2": "^8.13.0",
         "sweetalert2-react-content": "^1.1.0",
         "ts-node": "^8.3.0",
