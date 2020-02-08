@@ -45,24 +45,35 @@ describe('Performance and Network Statistics', () => {
     })
 
     describe('Bandwidth', () => {
-        test('', () => {})
+        test.todo('intialize to 0')
+        test.todo('record sent bytes/s')
+        test.todo('record received bytes/s')
     })
-    describe('Ping', () => {
+    describe('Ping and Packet Loss', () => {
+        test('initializes to infinite ping and 0 packet loss', () => {
+            expect(stats.getPing()).toBe(Infinity)
+            expect(stats.getPacketLoss()).toBe(0)
+        })
         test('Single send/ack should record ping', () => {
             stats.nextSend(1)
             now = 100
             stats.nextAck(1)
             expect(stats.getPing()).toBe(100)
+            expect(stats.getPacketLoss()).toBe(0)
         })
 
         test('Sending three with one drop should only count as two ping recordings', () => {
             stats.nextSend(1)
             now = 100
+            stats.nextSend(2)
             stats.nextAck(1)
-            expect(stats.getPing()).toBe(100)
+            now = 200
+            stats.nextSend(3)
+            now = 320
+            stats.nextAck(3)
+
+            expect(stats.getPing()).toBe(110)
+            expect(Math.floor(stats.getPacketLoss())).toBe(33)
         })
-    })
-    describe('Packet Loss', () => {
-        test('', () => {})
     })
 })

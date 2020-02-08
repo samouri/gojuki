@@ -8,9 +8,6 @@ export class Stats {
     lastRenders: Array<number> = [] // holds the 10 last render times, to create a trailing avg.
     lastRenderTime = Number.NEGATIVE_INFINITY
 
-    lastRTCStatsTime = Number.NEGATIVE_INFINITY
-    lastRTCStats: Array<any>
-
     nextFrame() {
         const now = Date.now()
 
@@ -66,9 +63,15 @@ export class Stats {
         this.tickTracker.delete(ackedTickId)
         this.lastPingTimes.push(ping)
 
+        // Deal with stale sent packets (which count as a roundtrip drop)
         for (const tickId of this.tickTracker.keys()) {
+            this.lastPacketDrops.push(0)
             if (tickId < ackedTickId) {
                 this.tickTracker.delete(tickId)
+                this.lastPacketDrops[this.lastPacketDrops.length - 1]++
+            }
+            if (this.lastPacketDrops.length > 10) {
+                this.lastPacketDrops.shift()
             }
         }
 
@@ -87,8 +90,19 @@ export class Stats {
         return avg
     }
 
+    getPacketLoss() {
+        if (this.lastPacketDrops.length === 0) {
+            return 0
+        }
+        const sum = this.lastPacketDrops.reduce((acc, v) => acc + v, 0)
+        const avg = sum / (this.lastPacketDrops.length + sum)
+        return avg * 100
+    }
+
     // TODO: actually do this.
     // nextRTCStats() {
+    //     lastRTCStatsTime = Number.NEGATIVE_INFINITY
+    //     lastRTCStats: Array<any>
     //     const rtcStats = getRTCStats()
     // }
 }
