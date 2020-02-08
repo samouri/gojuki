@@ -52,7 +52,6 @@ export class Stats {
 
     nextAck(ackedTickId: number) {
         if (!this.tickTracker.has(ackedTickId)) {
-            console.log('HAPPENED!', ackedTickId)
             /* Can happen in two cases
              *  1. Browser refresh
              *  2. Receiving stale message thats already been deleted / considered dropped.
