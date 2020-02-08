@@ -44,11 +44,6 @@ describe('Performance and Network Statistics', () => {
         })
     })
 
-    describe('Bandwidth', () => {
-        test.todo('intialize to 0')
-        test.todo('record sent bytes/s')
-        test.todo('record received bytes/s')
-    })
     describe('Ping and Packet Loss', () => {
         test('initializes to infinite ping and 0 packet loss', () => {
             expect(stats.getPing()).toBe(Infinity)
@@ -75,5 +70,29 @@ describe('Performance and Network Statistics', () => {
             expect(stats.getPing()).toBe(110)
             expect(Math.floor(stats.getPacketLoss())).toBe(33)
         })
+
+        test('Two drops and then two hits --> 50', () => {
+            stats.nextSend(1)
+            stats.nextSend(2)
+            stats.nextSend(3)
+            stats.nextSend(4)
+            stats.nextAck(3)
+            stats.nextAck(4)
+
+            expect(Math.floor(stats.getPacketLoss())).toBe(50)
+        })
+
+        test('31 sends means infinite ping', () => {
+            for (let i = 0; i < 31; i++) {
+                stats.nextSend(i)
+            }
+            expect(Math.floor(stats.getPing())).toBe(Number.POSITIVE_INFINITY)
+        })
+    })
+
+    describe('Bandwidth', () => {
+        test.todo('intialize to 0')
+        test.todo('record sent bytes/s')
+        test.todo('record received bytes/s')
     })
 })

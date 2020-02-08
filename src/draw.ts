@@ -8,7 +8,14 @@ import {
 } from '../server/game'
 import { images } from './assets'
 import { getId } from './api'
-const debugMode = true
+import { stats } from './stats'
+
+let debugMode = false
+window.addEventListener('keydown', event => {
+    if (event.code === 'KeyD') {
+        debugMode = !debugMode
+    }
+})
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
     const players = Object.values(world.players)
@@ -89,8 +96,13 @@ function drawHUD(ctx: CanvasRenderingContext2D, world: World) {
     }
 
     if (debugMode) {
-        ctx.fillText(`FPS: tbd`, getGameDimensions().width - 100, 60)
-        ctx.fillText(`PING: tbd`, getGameDimensions().width - 100, 75)
+        ctx.fillText(`FPS: ${Math.round(stats.getFPS())}`, getGameDimensions().width - 130, 60)
+        ctx.fillText(`PING: ${Math.round(stats.getPing())}ms`, getGameDimensions().width - 130, 75)
+        ctx.fillText(
+            `PACKET LOSS: ${Math.round(stats.getPacketLoss())}%`,
+            getGameDimensions().width - 130,
+            90,
+        )
     }
     ctx.restore()
 }

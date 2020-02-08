@@ -13,6 +13,7 @@ import { playEffects, sounds } from './assets'
 import { sendTCP, initializeRTC, getId } from './api'
 import _ = require('lodash')
 import { sleep } from './timer'
+import { stats } from './stats'
 
 declare global {
     interface Window {
@@ -278,7 +279,6 @@ class GameScreen extends React.Component<
 > {
     // ctx: CanvasRenderingContext2D
     canvas: HTMLCanvasElement
-    lastTime: number
     _isMounted: boolean
     _animationCb: number | null = null
 
@@ -307,10 +307,7 @@ class GameScreen extends React.Component<
         return false
     }
 
-    gameLoop = (time: number) => {
-        const dt = time - this.lastTime
-        this.lastTime = time
-
+    gameLoop = () => {
         const party = gameState.getParty()
         if (!this.canvas || !party?.game) {
             requestAnimationFrame(this.gameLoop)
@@ -318,6 +315,7 @@ class GameScreen extends React.Component<
         }
 
         let world = party.game
+        stats.nextFrame()
 
         // render
         let ctx = this.canvas.getContext('2d')

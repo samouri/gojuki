@@ -52,9 +52,10 @@ export class Stats {
 
     nextAck(ackedTickId: number) {
         if (!this.tickTracker.has(ackedTickId)) {
+            console.log('HAPPENED!', ackedTickId)
             /* Can happen in two cases
              *  1. Browser refresh
-             *  2. Receiving stale message
+             *  2. Receiving stale message thats already been deleted / considered dropped.
              */
             return
         }
@@ -64,17 +65,17 @@ export class Stats {
         this.lastPingTimes.push(ping)
 
         // Deal with stale sent packets (which count as a roundtrip drop)
+        this.lastPacketDrops.push(0)
         for (const tickId of this.tickTracker.keys()) {
-            this.lastPacketDrops.push(0)
             if (tickId < ackedTickId) {
                 this.tickTracker.delete(tickId)
                 this.lastPacketDrops[this.lastPacketDrops.length - 1]++
             }
-            if (this.lastPacketDrops.length > 10) {
-                this.lastPacketDrops.shift()
-            }
         }
 
+        if (this.lastPacketDrops.length > 10) {
+            this.lastPacketDrops.shift()
+        }
         if (this.lastPingTimes.length > 10) {
             this.lastPingTimes.shift()
         }

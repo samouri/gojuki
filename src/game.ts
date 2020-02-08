@@ -8,6 +8,7 @@ import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, heartbeat, PartyState } from 
 import * as _ from 'lodash'
 import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
+import { stats } from './stats'
 
 const pressedKeys = new Set()
 window.addEventListener('keydown', event => pressedKeys.add(event.code))
@@ -112,6 +113,7 @@ setCorrectingInterval(() => {
     const { clientTick, ackedClientTick } = state.getTicks()
     if (clientTick > ackedClientTick) {
         sendRTC(getClientTick())
+        stats.nextSend(clientTick)
     }
 }, 32)
 
@@ -172,6 +174,7 @@ export class GameState {
         this.serverTick = message.serverTick
         this.serverState = message.party
         this.ackedClientTick = message.clientTick
+        stats.nextAck(this.ackedClientTick)
 
         // when reconnecting to a server its possible we'll want to catch up our client tick.
         this.clientTick = Math.max(this.clientTick, this.ackedClientTick)
