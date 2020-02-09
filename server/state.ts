@@ -6,6 +6,7 @@ import {
     stepPlayer,
     stepWorld,
     powerups,
+    getDefaultGame,
 } from './game'
 const maxPartySize = 3
 let serverTick = 0
@@ -64,10 +65,7 @@ export function log(message: string): LOG_MESSAGE {
     return { type: 'LOG', message }
 }
 
-export function heartbeat(
-    clientTick: number,
-    serverTick: number,
-): HEARTBEAT_MESSAGE {
+export function heartbeat(clientTick: number, serverTick: number): HEARTBEAT_MESSAGE {
     return { type: 'CLIENT_HEARTBEAT', serverTick, clientTick }
 }
 
@@ -115,13 +113,7 @@ export type stateT = {
     }
 }
 
-export type PartyStatus =
-    | 'NOT_STARTED'
-    | 'LOBBY'
-    | 'PLAYING'
-    | 'FINISHED'
-    | 'UPGRADES'
-    | 'TEST'
+export type PartyStatus = 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES' | 'TEST'
 export type PartyState = {
     players: Array<Player>
     status: PartyStatus
@@ -177,9 +169,7 @@ function handleJoinParty(
     if (!partyId) {
         partyId = Object.keys(state.parties).find(partyId => {
             const party = state.parties[partyId]
-            return (
-                party.status === 'LOBBY' && party.players.length < maxPartySize
-            )
+            return party.status === 'LOBBY' && party.players.length < maxPartySize
         })
     }
     if (!partyId) {
@@ -212,9 +202,7 @@ function handleJoinParty(
 export function handleStartGame(message: START_GAME_MESSAGE) {
     const party = state.parties[message.partyId]
     if (party.players.length > 4) {
-        console.error(
-            `Should never be more than 4 player, but there were: ${party.players.length}`,
-        )
+        console.error(`Should never be more than 4 player, but there were: ${party.players.length}`)
         return
     }
     if (party.status !== 'LOBBY') {
@@ -225,22 +213,7 @@ export function handleStartGame(message: START_GAME_MESSAGE) {
     }
 
     party.status = 'PLAYING'
-    const gamePlayers = _.fromPairs(
-        party.players.map((player, i) => [
-            player.peerId,
-            getDefaultPlayer((i + 1) as 1 | 2 | 3 | 4, player.playerName),
-        ]),
-    )
-
-    party.game = {
-        players: gamePlayers,
-        round: 1,
-        roundStartTime: Date.now(),
-        roundTimeLeft: 30,
-        serverTick,
-        food: [],
-        goo: [],
-    }
+    party.game = getDefaultGame(party.players, serverTick)
 
     // HACK TO START AT UPGRADES
     const upgradesHack = false
@@ -260,10 +233,7 @@ export function handleMessage(message: Message, peerId: string) {
     } else if (message.type === 'CLIENT_HEARTBEAT') {
         const ticks = state.clientTicks[peerId]
         ticks.clientTick = Math.max(ticks.clientTick, message.clientTick)
-        ticks.ackedServerTick = Math.max(
-            ticks.ackedServerTick,
-            message.serverTick,
-        )
+        ticks.ackedServerTick = Math.max(ticks.ackedServerTick, message.serverTick)
     } else if (message.type === 'PLAYER_UPGRADES') {
         const player = state.parties[partyId].game.players[peerId]
         const { cost, shortName } = powerups[message.powerup]

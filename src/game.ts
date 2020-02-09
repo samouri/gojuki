@@ -2,7 +2,7 @@
  * Contains all the details about running a game that are client specific.
  * This includes: canvas details, event handlers, and rendering.
  */
-import { PlayerInput } from '../server/game'
+import { PlayerInput, stepPlayer } from '../server/game'
 import { ReactState } from '../src/index'
 import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, heartbeat, PartyState } from '../server/state'
 import * as _ from 'lodash'
@@ -161,9 +161,17 @@ export class GameState {
         }
 
         if (this.optimizations.prediction) {
-            // TODO: implement client side prediction a-la
-            // this.clientState = stepPlayer(this.serverState, this.inputs)
+            // this modifies it in-place
+            stepPlayer(
+                this.clientState.game,
+                this.getPlayerId_(),
+                this.inputs.map(x => x[1]),
+            )
         }
+    }
+
+    getPlayerId_() {
+        return getId()
     }
 
     handleServerMessage(message: SERVER_TICK_MESSAGE) {
@@ -182,7 +190,14 @@ export class GameState {
 
         if (this.optimizations.prediction) {
             // reconcile client side predicted future w/ actual server state.
+            this.clientState = this.serverState
+            stepPlayer(
+                this.clientState.game,
+                this.getPlayerId_(),
+                this.inputs.map(x => x[1]),
+            )
         }
+
         if (this.optimizations.interpolation) {
             // TODO: implement interpolation. this means holding a buffer of
             // size 1 or 2 for enemy states, and tweening them to their next position.

@@ -3,7 +3,7 @@
  * This means only the model (state).
  */
 import * as _ from 'lodash'
-import { PartyState } from './state'
+import { PartyState, Player } from './state'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -123,10 +123,7 @@ export const PLAYER_CONFIG: { [id: number]: any } = {
     },
 }
 
-export function getDefaultPlayer(
-    playerNum: 1 | 2 | 3 | 4,
-    playerName: string,
-): GamePlayer {
+export function getDefaultPlayer(playerNum: 1 | 2 | 3 | 4, playerName: string): GamePlayer {
     return {
         ...getDefaultPosition(playerNum),
         playerNumber: playerNum,
@@ -161,6 +158,25 @@ export function getDefaultPosition(playerNum: 1 | 2 | 3 | 4) {
         y: PLAYER_CONFIG[playerNum].startPosition.y,
         rotation: PLAYER_CONFIG[playerNum].startPosition.rotation,
         v: 0,
+    }
+}
+
+export function getDefaultGame(players: Player[], serverTick: number): World {
+    const gamePlayers = _.fromPairs(
+        players.map((player, i) => [
+            player.peerId,
+            getDefaultPlayer((i + 1) as 1 | 2 | 3 | 4, player.playerName),
+        ]),
+    )
+
+    return {
+        players: gamePlayers,
+        round: 1,
+        roundStartTime: Date.now(),
+        roundTimeLeft: 30,
+        serverTick,
+        food: [],
+        goo: [],
     }
 }
 
@@ -214,11 +230,7 @@ export function stepWorld(party: PartyState, serverTick: number) {
     }
 }
 
-export function stepPlayer(
-    world: World,
-    playerId: string,
-    inputs: Array<PlayerInput>,
-) {
+export function stepPlayer(world: World, playerId: string, inputs: Array<PlayerInput>) {
     const gameDim = getGameDimensions()
     inputs = [...inputs]
 
@@ -337,8 +349,7 @@ export const powerups: {
 } = {
     'Sticky Goo': {
         cost: 5,
-        description:
-            'Drop sticky goo to slow your opponents down for 5 seconds.',
+        description: 'Drop sticky goo to slow your opponents down for 5 seconds.',
         shortName: 'goo',
     },
     Speed: {
