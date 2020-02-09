@@ -1,6 +1,7 @@
 import { GameState } from '../src/game'
-import { PlayerInput } from '../server/game'
+import { PlayerInput, getDefaultGame } from '../server/game'
 import { SERVER_TICK_MESSAGE, PartyState } from '../server/state'
+import { cloneDeep } from 'lodash'
 
 describe('GameState', () => {
     let state: GameState
@@ -113,12 +114,44 @@ describe('GameState', () => {
         })
     })
 
-    describe.skip('optimization: prediction', () => {
+    // TODO: use DI for getId as well as stepPlayer.
+    describe('optimization: prediction', () => {
+        const playerId = '42'
+
         beforeEach(() => {
             state.optimizations.prediction = true
+            state.clientState.game = getDefaultGame([{ playerName: 'test', peerId: playerId }], 0)
+            state.getPlayerId_ = () => playerId
         })
 
-        test('should synchronously update clients state after processing inputs', () => {})
-        test('should replay all inputs from server state', () => {})
+        test('should now return clientState instead of serverState', () => {
+            expect(state.getParty()).toBe(state.clientState)
+        })
+
+        test('should synchronously update clients state after processing inputs', () => {
+            let prevState = cloneDeep(state.getParty())
+            state.handleInput({ up: true, left: true, right: false, space: false })
+            let postState = cloneDeep(state.getParty())
+            expect(prevState).not.toStrictEqual(postState)
+
+            prevState = cloneDeep(postState)
+            state.handleInput({ up: true, left: true, right: false, space: false })
+            postState = cloneDeep(state.getParty())
+            expect(prevState).not.toStrictEqual(postState)
+        })
+
+        test('should replay all inputs from server state', () => {
+            for (let i = 0; i < 5; i++) {
+                state.handleInput(input)
+            }
+            state.handleServerMessage({
+                type: 'SERVER_TICK',
+                serverTick: 2,
+                clientTick: 2,
+                party: state.clientState,
+            })
+
+            expect(state.inputs.length).toBe(2)
+        })
     })
 })
