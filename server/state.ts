@@ -265,12 +265,19 @@ export function handleMessage(message: Message, peerId: string) {
             ackedServerTick: message.serverTick,
         }
 
-        // This is awful anti-cheat logic. Right now clients can make 4 moves every move.
-        // TODO: use bursty api logic. hold a counter from 0 that increments up by one every 16ms w/ a low max. that num represents how many moves a client can make.
         let inputs: Array<PlayerInput> = message.inputs
             .filter(elem => elem[0] > prevClientTick)
             .map(elem => elem[1])
-        inputs = _.takeRight(inputs, 5)
+        if (message.inputs.length > 5) {
+            console.log('message had > 5', message.inputs[0][0], prevClientTick)
+        }
+
+        // This is awful anti-cheat logic. Right now clients can make 4 moves every move.
+        // TODO: use bursty api logic. hold a counter from 0 that increments up by one every 16ms w/ a low max. that num represents how many moves a client can make.
+        if (inputs.length > 5) {
+            console.log('removing inputs for anti-cheat logic')
+            inputs = _.takeRight(inputs, 5)
+        }
 
         const party = state.parties[partyId]
         if (party.status === 'PLAYING' || party.status === 'TEST') {

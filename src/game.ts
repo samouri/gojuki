@@ -179,20 +179,25 @@ export class GameState {
             return
         }
 
+        stats.nextAck(this.ackedClientTick)
         this.serverTick = message.serverTick
         this.serverState = this.clientState = message.party
         this.ackedClientTick = message.clientTick
-        stats.nextAck(this.ackedClientTick)
+        this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
 
         // when reconnecting to a server its possible we'll want to catch up our client tick.
-        this.clientTick = Math.max(this.clientTick, this.ackedClientTick)
-        this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
+        if (this.clientTick < this.ackedClientTick) {
+            console.warn('Catching up clientTick to ackedClientTick')
+            this.clientTick = this.ackedClientTick + 1
+        }
 
         const shouldRegisterKeypress =
             this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
         if (this.optimizations.prediction && shouldRegisterKeypress) {
             // reconcile client side predicted future w/ actual server state.
-            console.log('attemptint to reconcile :/')
+            // TODO: figure out why reconcilation isn't perfect
+            // given the redundant packets and 0 lost inputs.
+            console.log('attempting to reconcile :/')
             stepPlayer(
                 this.clientState.game,
                 this.getPlayerId_(),
