@@ -128,7 +128,7 @@ export class GameState {
 
     optimizations = {
         interpolation: false,
-        prediction: false,
+        prediction: true,
     }
 
     getTicks() {
@@ -180,7 +180,7 @@ export class GameState {
         }
 
         this.serverTick = message.serverTick
-        this.serverState = message.party
+        this.serverState = this.clientState = message.party
         this.ackedClientTick = message.clientTick
         stats.nextAck(this.ackedClientTick)
 
@@ -188,9 +188,11 @@ export class GameState {
         this.clientTick = Math.max(this.clientTick, this.ackedClientTick)
         this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
 
-        if (this.optimizations.prediction) {
+        const shouldRegisterKeypress =
+            this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
+        if (this.optimizations.prediction && shouldRegisterKeypress) {
             // reconcile client side predicted future w/ actual server state.
-            this.clientState = this.serverState
+            console.log('attemptint to reconcile :/')
             stepPlayer(
                 this.clientState.game,
                 this.getPlayerId_(),
