@@ -1,10 +1,8 @@
-FROM node:alpine
+FROM node:slim
 
 WORKDIR /gojuki
 COPY . /gojuki/
 
-
-RUN apk add --no-cache libc6-compat #  see https://github.com/nodejs/docker-node#nodealpine
 
 RUN yarn install --frozen-lockfile
 RUN yarn build-ui
