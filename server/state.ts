@@ -31,6 +31,7 @@ export type SERVER_TICK_MESSAGE = {
     party: null | PartyState
     serverTick: number
     clientTick: number
+    delay: number
 }
 
 export type HEARTBEAT_MESSAGE = {
@@ -109,7 +110,7 @@ export function startGame(partyId: string): START_GAME_MESSAGE {
 export type stateT = {
     parties: { [id: string]: PartyState }
     clientTicks: {
-        [id: string]: { clientTick: number; ackedServerTick: number }
+        [id: string]: { clientTick: number; ackedServerTick: number; capturedAt: number }
     }
 }
 
@@ -140,6 +141,7 @@ export function initTicks(peerId: string) {
     state.clientTicks[peerId] = {
         ackedServerTick: -1,
         clientTick: -1,
+        capturedAt: -1,
     }
 }
 
@@ -263,6 +265,7 @@ export function handleMessage(message: Message, peerId: string) {
         state.clientTicks[peerId] = {
             clientTick,
             ackedServerTick: message.serverTick,
+            capturedAt: Date.now(),
         }
 
         let inputs: Array<PlayerInput> = message.inputs
@@ -325,7 +328,8 @@ function getGameDataToSend(peerId: string): { party: PartyState } {
 }
 
 function getHeartbeatDataToSend(peerId: string) {
-    return { serverTick, clientTick: state.clientTicks[peerId].clientTick }
+    const { clientTick, capturedAt } = state.clientTicks[peerId]
+    return { serverTick, clientTick, delay: Date.now() - capturedAt }
 }
 
 export function getTickData(peerId: string): SERVER_TICK_MESSAGE {

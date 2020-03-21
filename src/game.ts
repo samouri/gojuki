@@ -128,7 +128,7 @@ export class GameState {
 
     optimizations = {
         interpolation: false,
-        prediction: true,
+        prediction: false,
     }
 
     getTicks() {
@@ -179,7 +179,11 @@ export class GameState {
             return
         }
 
-        stats.nextAck(this.ackedClientTick)
+        stats.nextAck({
+            ackedTickId: message.clientTick,
+            serverTick: message.serverTick,
+            delay: message.delay,
+        })
         this.serverTick = message.serverTick
         this.serverState = this.clientState = message.party
         this.ackedClientTick = message.clientTick

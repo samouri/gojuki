@@ -310,7 +310,7 @@ class GameScreen extends React.Component<
     gameLoop = () => {
         const party = gameState.getParty()
         if (!this.canvas || !party?.game) {
-            requestAnimationFrame(this.gameLoop)
+            this._animationCb = requestAnimationFrame(this.gameLoop)
             return
         }
 
@@ -321,7 +321,7 @@ class GameScreen extends React.Component<
         let ctx = this.canvas.getContext('2d')
         drawWorld(ctx, world)
         playEffects(world.players[getId()])
-        requestAnimationFrame(this.gameLoop)
+        this._animationCb = requestAnimationFrame(this.gameLoop)
     }
 
     render() {

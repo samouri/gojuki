@@ -1,5 +1,3 @@
-import { getRTCStats } from './api'
-
 /**
  * @fileoverview Tracks various stats for the game. Used when debug mode is on.
  * Specifically keeps track of FPS, Latency, and Packet Loss.
@@ -36,8 +34,9 @@ export class Stats {
     }
 
     lastPingTimes: Array<number> = []
-    tickTracker: Map<number, number> = new Map()
     lastPacketDrops: Array<number> = []
+    tickTracker: Map<number, number> = new Map()
+    lastServerTick: number = -1
     PING_ROLLING_AVG_LENGTH = 15
     nextSend(tickId: number) {
         this.tickTracker.set(tickId, Date.now())
@@ -51,7 +50,15 @@ export class Stats {
         }
     }
 
-    nextAck(ackedTickId: number) {
+    nextAck({
+        ackedTickId,
+        delay,
+        serverTick,
+    }: {
+        ackedTickId: number
+        delay: number
+        serverTick: number
+    }) {
         if (!this.tickTracker.has(ackedTickId)) {
             /* Can happen in two cases
              *  1. Browser refresh
@@ -59,17 +66,22 @@ export class Stats {
              */
             return
         }
-        const now = Date.now()
-        const ping = now - this.tickTracker.get(ackedTickId)
-        this.tickTracker.delete(ackedTickId)
+        if (serverTick < this.lastServerTick) {
+            return
+        }
+
+        const ping = Date.now() - this.tickTracker.get(ackedTickId) - delay
         this.lastPingTimes.push(ping)
 
-        // Deal with stale sent packets (which count as a roundtrip drop)
-        this.lastPacketDrops.push(0)
+        // we expect each server tick to be exactly one tick higher
+        // anything else means we missed as many packets as happened in between.
+        this.lastPacketDrops.push(serverTick - this.lastServerTick - 1)
+        this.lastServerTick = serverTick
+
+        // clean up outdated measurements
         for (const tickId of this.tickTracker.keys()) {
-            if (tickId < ackedTickId) {
+            if (tickId <= ackedTickId) {
                 this.tickTracker.delete(tickId)
-                this.lastPacketDrops[this.lastPacketDrops.length - 1]++
             }
         }
 
@@ -99,13 +111,6 @@ export class Stats {
         const avg = sum / (this.lastPacketDrops.length + sum)
         return avg * 100
     }
-
-    // TODO: actually do this.
-    // nextRTCStats() {
-    //     lastRTCStatsTime = Number.NEGATIVE_INFINITY
-    //     lastRTCStats: Array<any>
-    //     const rtcStats = getRTCStats()
-    // }
 }
 
 export const stats = new Stats()
