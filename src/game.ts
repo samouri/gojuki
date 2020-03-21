@@ -4,7 +4,7 @@
  */
 import { PlayerInput, stepPlayer } from '../server/game'
 import { ReactState } from '../src/index'
-import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, heartbeat, PartyState } from '../server/state'
+import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
@@ -51,7 +51,6 @@ export const initialUIState: ReactState = {
 }
 
 let cacheUIState: ReactState = { ...initialUIState }
-window.uiState = cacheUIState
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
     const party: PartyState = message.party
     // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
@@ -87,7 +86,6 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
 
     if (!_.isEqual(cacheUIState, newUIState)) {
         cacheUIState = newUIState
-        window.uiState = cacheUIState // TODO: why the heck am i doing this?
         return cacheUIState
     }
 

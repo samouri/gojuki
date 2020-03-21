@@ -122,7 +122,7 @@ describe('GameState', () => {
 
         beforeEach(() => {
             state.optimizations.prediction = true
-            state.clientState.game = getDefaultGame([{ playerName: 'test', peerId: playerId }], 0)
+            state.clientState.game = getDefaultGame([{ playerName: 'test', peerId: playerId }])
             state.getPlayerId_ = () => playerId
         })
 

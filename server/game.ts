@@ -16,7 +16,6 @@ export type World = {
     round: number
     roundStartTime: number
     roundTimeLeft: number
-    serverTick: number
     food: Array<{
         x: number
         y: number
@@ -161,7 +160,7 @@ export function getDefaultPosition(playerNum: 1 | 2 | 3 | 4) {
     }
 }
 
-export function getDefaultGame(players: Player[], serverTick: number): World {
+export function getDefaultGame(players: Player[]): World {
     const gamePlayers = _.fromPairs(
         players.map((player, i) => [
             player.peerId,
@@ -174,7 +173,6 @@ export function getDefaultGame(players: Player[], serverTick: number): World {
         round: 1,
         roundStartTime: Date.now(),
         roundTimeLeft: 30,
-        serverTick,
         food: [],
         goo: [],
     }

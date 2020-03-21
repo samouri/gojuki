@@ -1,4 +1,4 @@
-import { Message } from '../server/state'
+import { Message, SERVER_TICK_MESSAGE } from '../server/state'
 import { handleServerTick } from './game'
 import SimplePeer from 'simple-peer'
 
@@ -26,12 +26,8 @@ export function getId() {
     return peerId
 }
 
-function handleMessage(message: Message) {
-    if (message.type === 'LOG') {
-        console.log(message.message)
-    } else if (message.type === 'SERVER_TICK') {
-        handleServerTick(message)
-    }
+function handleMessage(message: SERVER_TICK_MESSAGE) {
+    handleServerTick(message)
 }
 
 export async function initializeRTC() {
@@ -64,7 +60,7 @@ export async function initializeRTC() {
     })
 
     peer.on('data', function(data: string) {
-        handleMessage(JSON.parse(data) as Message)
+        handleMessage(JSON.parse(data) as SERVER_TICK_MESSAGE)
     })
 
     // get this show on the road

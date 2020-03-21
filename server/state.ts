@@ -12,7 +12,6 @@ const maxPartySize = 3
 let serverTick = 0
 
 /* Messages & message creators */
-export type LOG_MESSAGE = { type: 'LOG'; message: string }
 export type JOIN_PARTY_MESSAGE = {
     type: 'JOIN_PARTY'
     playerName: string
@@ -23,7 +22,7 @@ export type JOIN_PARTY_MESSAGE = {
 export type PLAYER_INPUTS = { type: 'CLIENT_INPUTS'; input: PlayerInput }
 export type PLAYER_UPGRADE_MESSAGE = {
     type: 'PLAYER_UPGRADES'
-    powerup: 'Sticky Goo' | 'Speed' | 'Food Carry Limit'
+    powerup: Powerup
     delta: 1 | -1
 }
 export type SERVER_TICK_MESSAGE = {
@@ -32,12 +31,6 @@ export type SERVER_TICK_MESSAGE = {
     serverTick: number
     clientTick: number
     delay: number
-}
-
-export type HEARTBEAT_MESSAGE = {
-    type: 'CLIENT_HEARTBEAT'
-    serverTick: number
-    clientTick: number
 }
 
 export type START_GAME_MESSAGE = {
@@ -53,27 +46,15 @@ export type CLIENT_TICK_MESSAGE = {
 }
 
 export type Message =
-    | LOG_MESSAGE
     | JOIN_PARTY_MESSAGE
     | PLAYER_INPUTS
     | SERVER_TICK_MESSAGE
     | PLAYER_UPGRADE_MESSAGE
     | CLIENT_TICK_MESSAGE
-    | HEARTBEAT_MESSAGE
     | START_GAME_MESSAGE
 
-export function log(message: string): LOG_MESSAGE {
-    return { type: 'LOG', message }
-}
-
-export function heartbeat(clientTick: number, serverTick: number): HEARTBEAT_MESSAGE {
-    return { type: 'CLIENT_HEARTBEAT', serverTick, clientTick }
-}
-
-export function selectUpgrade(
-    powerup: 'Sticky Goo' | 'Speed' | 'Food Carry Limit',
-    delta: 1 | -1,
-): PLAYER_UPGRADE_MESSAGE {
+type Powerup = 'Sticky Goo' | 'Speed' | 'Food Carry Limit'
+export function selectUpgrade(powerup: Powerup, delta: 1 | -1): PLAYER_UPGRADE_MESSAGE {
     return {
         type: 'PLAYER_UPGRADES',
         powerup,
@@ -145,9 +126,21 @@ export function initTicks(peerId: string) {
     }
 }
 
+export function handleMessage(message: Message, peerId: string) {
+    if (message.type === 'JOIN_PARTY') {
+        return handleJoinParty(message, peerId)
+    } else if (message.type === 'PLAYER_UPGRADES') {
+        return handlePlayerUpgrades(message, peerId)
+    } else if (message.type === 'CLIENT_TICK') {
+        return handleClientTick(message, peerId)
+    } else if (message.type === 'START_GAME') {
+        return handleStartGame(message)
+    }
+}
+
 function handleJoinParty(
-    peerId: string,
     message: JOIN_PARTY_MESSAGE,
+    peerId: string,
 ): { partyId: string } | { err: string } {
     let { partyId, test, playerName } = message
     // If not specifying a partyId, check to see if should rejoin an in-progress game.
@@ -215,7 +208,7 @@ export function handleStartGame(message: START_GAME_MESSAGE) {
     }
 
     party.status = 'PLAYING'
-    party.game = getDefaultGame(party.players, serverTick)
+    party.game = getDefaultGame(party.players)
 
     // HACK TO START AT UPGRADES
     const upgradesHack = false
@@ -225,71 +218,55 @@ export function handleStartGame(message: START_GAME_MESSAGE) {
     }
 }
 
-export function handleMessage(message: Message, peerId: string) {
-    const partyId = getPartyId(peerId)
-
-    if (message.type === 'JOIN_PARTY') {
-        return handleJoinParty(peerId, message)
-    } else if (message.type === 'LOG') {
-        console.log(message.message)
-    } else if (message.type === 'CLIENT_HEARTBEAT') {
-        const ticks = state.clientTicks[peerId]
-        ticks.clientTick = Math.max(ticks.clientTick, message.clientTick)
-        ticks.ackedServerTick = Math.max(ticks.ackedServerTick, message.serverTick)
-    } else if (message.type === 'PLAYER_UPGRADES') {
-        const player = state.parties[partyId].game.players[peerId]
-        const { cost, shortName } = powerups[message.powerup]
-
-        if (player.food >= cost && message.delta === 1) {
-            player.food -= cost
-            player.powerups[shortName]++
-        } else if (message.delta === -1 && player.powerups[shortName] > 0) {
-            player.food += cost
-            player.powerups[shortName]--
-        }
-        return player.powerups
-    } else if (message.type === 'CLIENT_TICK') {
-        if (message.clientTick <= state.clientTicks[peerId].clientTick) {
-            // console.log(
-            //     `dupe or outdated message because of outdated clientTick: ${message.clientTick}`,
-            // )
-        }
-
-        if (!partyId) {
-            console.log(`SHOULD NOT BE RECEIVING CLIENT_TICK BEFORE GAME START`)
-            return
-        }
-
-        const prevClientTick = state.clientTicks[peerId].clientTick
-        const clientTick = message.clientTick
-        state.clientTicks[peerId] = {
-            clientTick,
-            ackedServerTick: message.serverTick,
-            capturedAt: Date.now(),
-        }
-
-        let inputs: Array<PlayerInput> = message.inputs
-            .filter(elem => elem[0] > prevClientTick)
-            .map(elem => elem[1])
-        if (message.inputs.length > 5) {
-            console.log('message had > 5', message.inputs[0][0], prevClientTick)
-        }
-
-        // This is awful anti-cheat logic. Right now clients can make 4 moves every move.
-        // TODO: use bursty api logic. hold a counter from 0 that increments up by one every 16ms w/ a low max. that num represents how many moves a client can make.
-        if (inputs.length > 5) {
-            console.log('removing inputs for anti-cheat logic')
-            inputs = _.takeRight(inputs, 5)
-        }
-
-        const party = state.parties[partyId]
-        if (party.status === 'PLAYING' || party.status === 'TEST') {
-            stepPlayer(party.game, peerId, inputs)
-            party.game.serverTick = serverTick
-        }
-    } else if (message.type === 'START_GAME') {
-        return handleStartGame(message as START_GAME_MESSAGE)
+function handleClientTick(message: CLIENT_TICK_MESSAGE, peerId: string) {
+    if (message.clientTick <= state.clientTicks[peerId].clientTick) {
+        // console.log(
+        //     `dupe or outdated message because of outdated clientTick: ${message.clientTick}`,
+        // )
     }
+
+    if (!getPartyId(peerId)) {
+        console.log(`SHOULD NOT BE RECEIVING CLIENT_TICK BEFORE GAME START`)
+        return
+    }
+
+    const prevClientTick = state.clientTicks[peerId].clientTick
+    state.clientTicks[peerId] = {
+        clientTick: message.clientTick,
+        ackedServerTick: message.serverTick,
+        capturedAt: Date.now(),
+    }
+
+    let inputs: Array<PlayerInput> = message.inputs
+        .filter(elem => elem[0] > prevClientTick)
+        .map(elem => elem[1])
+
+    // This is awful anti-cheat logic. Right now clients can make 4 moves every move.
+    // TODO: use bursty api logic. hold a counter from 0 that increments up by one every 16ms w/ a low max. that num represents how many moves a client can make.
+    if (inputs.length > 5) {
+        console.log('removing inputs for anti-cheat logic')
+        inputs = _.takeRight(inputs, 5)
+    }
+
+    const party = state.parties[getPartyId(peerId)]
+    if (party.status === 'PLAYING' || party.status === 'TEST') {
+        stepPlayer(party.game, peerId, inputs)
+    }
+}
+
+function handlePlayerUpgrades(message: PLAYER_UPGRADE_MESSAGE, peerId: string) {
+    const partyId = getPartyId(peerId)
+    const player = state.parties[partyId].game.players[peerId]
+    const { cost, shortName } = powerups[message.powerup]
+
+    if (player.food >= cost && message.delta === 1) {
+        player.food -= cost
+        player.powerups[shortName]++
+    } else if (message.delta === -1 && player.powerups[shortName] > 0) {
+        player.food += cost
+        player.powerups[shortName]--
+    }
+    return player.powerups
 }
 
 /**
@@ -310,36 +287,22 @@ function getPartyId(peerId: string) {
     return partyIndex[peerId]
 }
 
-function getGameDataToSend(peerId: string): { party: PartyState } {
-    const partyId = getPartyId(peerId)
-    if (!peerId || !partyId) {
-        // throw new Error(`peerId: ${peerId} hostId: ${hostId}`)
-        return { party: null }
-    }
-
-    const ret: any = { party: null }
-
-    if (state.parties[partyId].game) {
-        stepWorld(state.parties[partyId], serverTick)
-    }
-    ret.party = state.parties[partyId]
-
-    return ret
+function tick() {
+    serverTick++
 }
-
-function getHeartbeatDataToSend(peerId: string) {
-    const { clientTick, capturedAt } = state.clientTicks[peerId]
-    return { serverTick, clientTick, delay: Date.now() - capturedAt }
+export function stepWorlds() {
+    tick()
+    for (const party of Object.values(state.parties)) {
+        stepWorld(party, serverTick)
+    }
 }
 
 export function getTickData(peerId: string): SERVER_TICK_MESSAGE {
     return {
         type: 'SERVER_TICK',
-        ...getHeartbeatDataToSend(peerId),
-        ...getGameDataToSend(peerId),
+        serverTick,
+        clientTick: state.clientTicks[peerId].clientTick,
+        delay: Date.now() - state.clientTicks[peerId].capturedAt,
+        party: state.parties[getPartyId(peerId)],
     }
-}
-
-export function tick() {
-    serverTick++
 }
