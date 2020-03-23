@@ -240,13 +240,14 @@ function handleClientTick(message: CLIENT_TICK_MESSAGE, peerId: string) {
     let inputs: Array<PlayerInput> = message.inputs
         .filter(elem => elem[0] > prevClientTick)
         .map(elem => elem[1])
+    console.error(`inputs: ${JSON.stringify(message.inputs.map(x => x[0]))}`)
 
     // This is awful anti-cheat logic. Right now clients can make 4 moves every move.
     // TODO: use bursty api logic. hold a counter from 0 that increments up by one every 16ms w/ a low max. that num represents how many moves a client can make.
-    if (inputs.length > 5) {
-        console.log('removing inputs for anti-cheat logic')
-        inputs = _.takeRight(inputs, 5)
-    }
+    // if (inputs.length > 5) {
+    //     console.log('removing inputs for anti-cheat logic')
+    //     inputs = _.takeRight(inputs, 5)
+    // }
 
     const party = state.parties[getPartyId(peerId)]
     if (party.status === 'PLAYING' || party.status === 'TEST') {

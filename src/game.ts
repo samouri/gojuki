@@ -2,7 +2,7 @@
  * Contains all the details about running a game that are client specific.
  * This includes: canvas details, event handlers, and rendering.
  */
-import { PlayerInput, stepPlayer } from '../server/game'
+import { PlayerInput, stepPlayer, GamePlayer } from '../server/game'
 import { ReactState } from '../src/index'
 import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState } from '../server/state'
 import * as _ from 'lodash'
@@ -115,6 +115,8 @@ setCorrectingInterval(() => {
     }
 }, 32)
 
+const clientHistory: { [id: number]: GamePlayer } = {}
+
 export class GameState {
     inputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
     clientTick = -1
@@ -126,7 +128,7 @@ export class GameState {
 
     optimizations = {
         interpolation: false,
-        prediction: false,
+        prediction: true,
     }
 
     getTicks() {
@@ -155,16 +157,14 @@ export class GameState {
         this.clientTick++
         this.inputs.push([this.clientTick, input])
         while (this.inputs.length > 5) {
+            console.error('THIS SHOULDNT BE HAPPENING')
             this.inputs.shift()
         }
 
         if (this.optimizations.prediction) {
             // this modifies it in-place
-            stepPlayer(
-                this.clientState.game,
-                this.getPlayerId_(),
-                this.inputs.map(x => x[1]),
-            )
+            stepPlayer(this.clientState.game, this.getPlayerId_(), [input])
+            clientHistory[this.clientTick] = this.clientState.game.players[this.getPlayerId_()]
         }
     }
 
@@ -183,7 +183,24 @@ export class GameState {
             delay: message.delay,
         })
         this.serverTick = message.serverTick
-        this.serverState = this.clientState = message.party
+        this.serverState = message.party
+        this.clientState = _.cloneDeep(this.serverState)
+
+        const actual = this.serverState?.game.players[this.getPlayerId_()]
+        const predicted = clientHistory[message.clientTick]
+        delete clientHistory[message.clientTick]
+        if (
+            predicted &&
+            actual &&
+            !_.isEqual({ x: predicted.x, y: predicted.y }, { x: actual.x, y: actual.y })
+        ) {
+            console.error(
+                `Incorrect prediction at tick ${message.clientTick}, predicted: {${predicted.x}, ${predicted.y}}, was actually: {${actual.x}, ${actual.y}}`,
+            )
+        } else {
+            console.count(`predicted correctly :)`)
+        }
+
         this.ackedClientTick = message.clientTick
         this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
 
@@ -195,11 +212,10 @@ export class GameState {
 
         const shouldRegisterKeypress =
             this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
-        if (this.optimizations.prediction && shouldRegisterKeypress) {
+        if (this.optimizations.prediction && shouldRegisterKeypress && this.inputs.length > 0) {
             // reconcile client side predicted future w/ actual server state.
             // TODO: figure out why reconcilation isn't perfect
             // given the redundant packets and 0 lost inputs.
-            console.log('attempting to reconcile :/')
             stepPlayer(
                 this.clientState.game,
                 this.getPlayerId_(),

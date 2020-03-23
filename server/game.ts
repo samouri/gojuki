@@ -187,6 +187,10 @@ export function getDefaultGame(players: Player[]): World {
  */
 export function stepWorld(party: PartyState, serverTick: number) {
     const world: World = party.game
+    if (!world) {
+        return
+    }
+
     const dt = Date.now() - world.roundStartTime
     const roundTime = party.status === 'PLAYING' ? 60 : 30
     world.roundTimeLeft = Math.floor(roundTime - dt / 1000)
@@ -258,8 +262,8 @@ export function stepPlayer(world: World, playerId: string, inputs: Array<PlayerI
             p.rotation += p.turnSpeed
         }
 
-        p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
-        p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
+        p.x = Math.round(Math.min(Math.max(10, p.x), gameDim.width - 10))
+        p.y = Math.round(Math.min(Math.max(10, p.y), gameDim.height - 10))
         eatFood(world, p)
         depositFood(world, p)
 
