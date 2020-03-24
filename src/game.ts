@@ -2,9 +2,9 @@
  * Contains all the details about running a game that are client specific.
  * This includes: canvas details, event handlers, and rendering.
  */
-import { PlayerInput, stepPlayer } from '../server/game'
+import { PlayerInput, stepPlayer, GamePlayer } from '../server/game'
 import { ReactState } from '../src/index'
-import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, heartbeat, PartyState } from '../server/state'
+import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
@@ -51,7 +51,6 @@ export const initialUIState: ReactState = {
 }
 
 let cacheUIState: ReactState = { ...initialUIState }
-window.uiState = cacheUIState
 function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
     const party: PartyState = message.party
     // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
@@ -87,7 +86,6 @@ function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
 
     if (!_.isEqual(cacheUIState, newUIState)) {
         cacheUIState = newUIState
-        window.uiState = cacheUIState // TODO: why the heck am i doing this?
         return cacheUIState
     }
 
@@ -117,6 +115,8 @@ setCorrectingInterval(() => {
     }
 }, 32)
 
+const clientHistory: { [id: number]: GamePlayer } = {}
+
 export class GameState {
     inputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
     clientTick = -1
@@ -128,7 +128,7 @@ export class GameState {
 
     optimizations = {
         interpolation: false,
-        prediction: false,
+        prediction: true,
     }
 
     getTicks() {
@@ -157,16 +157,14 @@ export class GameState {
         this.clientTick++
         this.inputs.push([this.clientTick, input])
         while (this.inputs.length > 5) {
+            console.error('THIS SHOULDNT BE HAPPENING')
             this.inputs.shift()
         }
 
         if (this.optimizations.prediction) {
             // this modifies it in-place
-            stepPlayer(
-                this.clientState.game,
-                this.getPlayerId_(),
-                this.inputs.map(x => x[1]),
-            )
+            stepPlayer(this.clientState.game, this.getPlayerId_(), [input])
+            clientHistory[this.clientTick] = this.clientState.game.players[this.getPlayerId_()]
         }
     }
 
@@ -179,18 +177,43 @@ export class GameState {
             return
         }
 
+        stats.nextAck({
+            ackedTickId: message.clientTick,
+            serverTick: message.serverTick,
+            delay: message.delay,
+        })
         this.serverTick = message.serverTick
         this.serverState = message.party
-        this.ackedClientTick = message.clientTick
-        stats.nextAck(this.ackedClientTick)
+        this.clientState = _.cloneDeep(this.serverState)
 
-        // when reconnecting to a server its possible we'll want to catch up our client tick.
-        this.clientTick = Math.max(this.clientTick, this.ackedClientTick)
+        const actual = this.serverState?.game?.players[this.getPlayerId_()]
+        const predicted = clientHistory[message.clientTick]
+        delete clientHistory[message.clientTick]
+        if (
+            predicted &&
+            actual &&
+            !_.isEqual({ x: predicted.x, y: predicted.y }, { x: actual.x, y: actual.y })
+        ) {
+            console.error(
+                `Incorrect prediction at tick ${message.clientTick}, predicted: {${predicted.x}, ${predicted.y}}, was actually: {${actual.x}, ${actual.y}}`,
+            )
+        }
+
+        this.ackedClientTick = message.clientTick
         this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
 
-        if (this.optimizations.prediction) {
+        // when reconnecting to a server its possible we'll want to catch up our client tick.
+        if (this.clientTick < this.ackedClientTick) {
+            console.warn('Catching up clientTick to ackedClientTick')
+            this.clientTick = this.ackedClientTick + 1
+        }
+
+        const shouldRegisterKeypress =
+            this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
+        if (this.optimizations.prediction && shouldRegisterKeypress && this.inputs.length > 0) {
             // reconcile client side predicted future w/ actual server state.
-            this.clientState = this.serverState
+            // TODO: figure out why reconcilation isn't perfect
+            // given the redundant packets and 0 lost inputs.
             stepPlayer(
                 this.clientState.game,
                 this.getPlayerId_(),

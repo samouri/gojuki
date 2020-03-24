@@ -35,9 +35,7 @@ app.post('/api', (req, res) => {
     res.json(resp)
 })
 
-app.get('/*', (req, res) =>
-    res.sendFile(path.resolve(__dirname, '..', 'dist/index.html')),
-)
+app.get('/*', (req, res) => res.sendFile(path.resolve(__dirname, '..', 'dist/index.html')))
 
 const port = process.env.PORT || 3000
 console.log(`Load up the game at: http://localhost:${port}`)
@@ -45,7 +43,7 @@ app.listen(port)
 
 setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
-    state.tick()
+    state.stepWorlds()
     for (const [clientId, client] of peers.getClients()) {
         client.send(JSON.stringify(state.getTickData(clientId)))
     }

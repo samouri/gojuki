@@ -16,7 +16,6 @@ export type World = {
     round: number
     roundStartTime: number
     roundTimeLeft: number
-    serverTick: number
     food: Array<{
         x: number
         y: number
@@ -161,7 +160,7 @@ export function getDefaultPosition(playerNum: 1 | 2 | 3 | 4) {
     }
 }
 
-export function getDefaultGame(players: Player[], serverTick: number): World {
+export function getDefaultGame(players: Player[]): World {
     const gamePlayers = _.fromPairs(
         players.map((player, i) => [
             player.peerId,
@@ -174,7 +173,6 @@ export function getDefaultGame(players: Player[], serverTick: number): World {
         round: 1,
         roundStartTime: Date.now(),
         roundTimeLeft: 30,
-        serverTick,
         food: [],
         goo: [],
     }
@@ -189,6 +187,10 @@ export function getDefaultGame(players: Player[], serverTick: number): World {
  */
 export function stepWorld(party: PartyState, serverTick: number) {
     const world: World = party.game
+    if (!world) {
+        return
+    }
+
     const dt = Date.now() - world.roundStartTime
     const roundTime = party.status === 'PLAYING' ? 60 : 30
     world.roundTimeLeft = Math.floor(roundTime - dt / 1000)
@@ -260,8 +262,8 @@ export function stepPlayer(world: World, playerId: string, inputs: Array<PlayerI
             p.rotation += p.turnSpeed
         }
 
-        p.x = Math.min(Math.max(10, p.x), gameDim.width - 10)
-        p.y = Math.min(Math.max(10, p.y), gameDim.height - 10)
+        p.x = Math.round(Math.min(Math.max(10, p.x), gameDim.width - 10))
+        p.y = Math.round(Math.min(Math.max(10, p.y), gameDim.height - 10))
         eatFood(world, p)
         depositFood(world, p)
 

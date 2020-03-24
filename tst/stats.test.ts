@@ -9,8 +9,9 @@ describe('Performance and Network Statistics', () => {
         stats = new Stats()
         now = 0
         // Mocks
-        Date.now = jest.spyOn(Date, 'now').mockImplementation(() => now)
+        jest.spyOn(Date, 'now').mockImplementation(() => now)
     })
+
     describe('FPS', () => {
         test('Reports 60 when the game starts and hasnt actually had a frame yet', () => {
             expect(stats.getFPS()).toBe(60)
@@ -49,11 +50,12 @@ describe('Performance and Network Statistics', () => {
             expect(stats.getPing()).toBe(Infinity)
             expect(stats.getPacketLoss()).toBe(0)
         })
+
         test('Single send/ack should record ping', () => {
             stats.nextSend(1)
             now = 100
-            stats.nextAck(1)
-            expect(stats.getPing()).toBe(100)
+            stats.nextAck({ ackedTickId: 1, delay: 10, serverTick: 0 })
+            expect(stats.getPing()).toBe(90)
             expect(stats.getPacketLoss()).toBe(0)
         })
 
@@ -61,25 +63,14 @@ describe('Performance and Network Statistics', () => {
             stats.nextSend(1)
             now = 100
             stats.nextSend(2)
-            stats.nextAck(1)
+            stats.nextAck({ ackedTickId: 1, delay: 0, serverTick: 0 })
             now = 200
             stats.nextSend(3)
             now = 320
-            stats.nextAck(3)
+            stats.nextAck({ ackedTickId: 3, delay: 0, serverTick: 2 })
 
             expect(stats.getPing()).toBe(110)
             expect(Math.floor(stats.getPacketLoss())).toBe(33)
-        })
-
-        test('Two drops and then two hits --> 50', () => {
-            stats.nextSend(1)
-            stats.nextSend(2)
-            stats.nextSend(3)
-            stats.nextSend(4)
-            stats.nextAck(3)
-            stats.nextAck(4)
-
-            expect(Math.floor(stats.getPacketLoss())).toBe(50)
         })
 
         test('31 sends means infinite ping', () => {

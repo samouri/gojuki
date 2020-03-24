@@ -7,7 +7,7 @@ import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
 import { joinParty, startGame, Player, selectUpgrade, PartyStatus } from '../server/state'
 import { getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
-import { handleServerTick, initialUIState, state as gameState } from './game'
+import { initialUIState, state as gameState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
 import { sendTCP, initializeRTC, getId } from './api'
@@ -18,7 +18,6 @@ import { stats } from './stats'
 declare global {
     interface Window {
         appSetState: any
-        uiState: ReactState
     }
 }
 
@@ -111,8 +110,8 @@ function shouldJoinParty(state: ReactState, partyId: string) {
 }
 
 /* partyId refers to the one in the URL */
-function ensureInParty(partyId: string): Promise<void> {
-    const state = window?.uiState
+function ensureInParty(partyId: string, getState: () => ReactState): Promise<void> {
+    const state = getState()
     if (state?.partyId) {
         return Promise.resolve()
     }
@@ -128,14 +127,14 @@ function ensureInParty(partyId: string): Promise<void> {
     }
     console.log('still connecting')
 
-    return sleep(400).then(() => ensureInParty(partyId))
+    return sleep(400).then(() => ensureInParty(partyId, getState))
 }
 
 class PartyScreen extends React.Component<
     RouteComponentProps<{ partyId: string }> & { clientState: ReactState }
 > {
     componentDidMount() {
-        ensureInParty(this.props.partyId)
+        ensureInParty(this.props.partyId, () => this.props.clientState)
     }
 
     render() {
@@ -293,7 +292,7 @@ class GameScreen extends React.Component<
             sounds.play.play()
         }
 
-        ensureInParty(this.props.partyId)
+        ensureInParty(this.props.partyId, () => this.props.clientState)
     }
 
     componentWillUnmount() {
@@ -310,7 +309,7 @@ class GameScreen extends React.Component<
     gameLoop = () => {
         const party = gameState.getParty()
         if (!this.canvas || !party?.game) {
-            requestAnimationFrame(this.gameLoop)
+            this._animationCb = requestAnimationFrame(this.gameLoop)
             return
         }
 
@@ -321,11 +320,10 @@ class GameScreen extends React.Component<
         let ctx = this.canvas.getContext('2d')
         drawWorld(ctx, world)
         playEffects(world.players[getId()])
-        requestAnimationFrame(this.gameLoop)
+        this._animationCb = requestAnimationFrame(this.gameLoop)
     }
 
     render() {
-        console.log(`Rerender triggered`)
         let { width, height } = getGameDimensions()
         height += HUD_HEIGHT
         return (

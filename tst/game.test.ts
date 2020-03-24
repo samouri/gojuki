@@ -40,13 +40,14 @@ describe('GameState', () => {
                 type: 'SERVER_TICK',
                 serverTick: 42,
                 clientTick: 24,
+                delay: 0,
                 party: null,
             }
             state.handleServerMessage(message)
 
             expect(state.getTicks()).toStrictEqual({
-                clientTick: 24, // even though clientTick was -1, the server bumps it up.
                 serverTick: 42,
+                clientTick: 25, // even though clientTick was -1, the server bumps it up.
                 ackedClientTick: 24,
             })
         })
@@ -57,6 +58,7 @@ describe('GameState', () => {
                 type: 'SERVER_TICK',
                 serverTick: 1,
                 clientTick: 24,
+                delay: 0,
                 party: null,
             }
             state.handleServerMessage(message)
@@ -120,7 +122,7 @@ describe('GameState', () => {
 
         beforeEach(() => {
             state.optimizations.prediction = true
-            state.clientState.game = getDefaultGame([{ playerName: 'test', peerId: playerId }], 0)
+            state.clientState.game = getDefaultGame([{ playerName: 'test', peerId: playerId }])
             state.getPlayerId_ = () => playerId
         })
 
@@ -148,6 +150,7 @@ describe('GameState', () => {
                 type: 'SERVER_TICK',
                 serverTick: 2,
                 clientTick: 2,
+                delay: 0,
                 party: state.clientState,
             })
 
