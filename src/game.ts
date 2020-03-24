@@ -186,7 +186,7 @@ export class GameState {
         this.serverState = message.party
         this.clientState = _.cloneDeep(this.serverState)
 
-        const actual = this.serverState?.game.players[this.getPlayerId_()]
+        const actual = this.serverState?.game?.players[this.getPlayerId_()]
         const predicted = clientHistory[message.clientTick]
         delete clientHistory[message.clientTick]
         if (
@@ -197,8 +197,6 @@ export class GameState {
             console.error(
                 `Incorrect prediction at tick ${message.clientTick}, predicted: {${predicted.x}, ${predicted.y}}, was actually: {${actual.x}, ${actual.y}}`,
             )
-        } else {
-            console.count(`predicted correctly :)`)
         }
 
         this.ackedClientTick = message.clientTick

@@ -324,7 +324,6 @@ class GameScreen extends React.Component<
     }
 
     render() {
-        console.log(`Rerender triggered`)
         let { width, height } = getGameDimensions()
         height += HUD_HEIGHT
         return (
