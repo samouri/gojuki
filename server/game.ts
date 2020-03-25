@@ -217,7 +217,6 @@ export function stepWorld(party: PartyState, serverTick: number) {
             }))
 
             party.status = 'PLAYING'
-            party.serverTick = serverTick
             world.roundStartTime = Date.now()
             party.game.round++
         } else if (party.status === 'PLAYING') {
@@ -226,7 +225,6 @@ export function stepWorld(party: PartyState, serverTick: number) {
                 return
             }
             party.status = 'UPGRADES'
-            party.serverTick = serverTick
             world.roundStartTime = Date.now()
         }
     }

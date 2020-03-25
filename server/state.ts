@@ -12,13 +12,17 @@ const maxPartySize = 3
 let serverTick = 0
 
 /* Messages & message creators */
+export type LIST_PARTIES_MESSAGE = { type: 'LIST_PARTIES' }
+export type CREATE_PARTY_MESSAGE = { type: 'CREATE_PARTY'; name: string }
+export type SET_PARTY_MESSAGE = { type: 'SET_PARTY'; id: string }
 export type JOIN_PARTY_MESSAGE = {
     type: 'JOIN_PARTY'
+    partyId: string
     playerName: string
-    peerId: string
-    partyId?: string
     test?: boolean
 }
+export type START_GAME_MESSAGE = { type: 'START_GAME'; partyId: string }
+
 export type PLAYER_INPUTS = { type: 'CLIENT_INPUTS'; input: PlayerInput }
 export type PLAYER_UPGRADE_MESSAGE = {
     type: 'PLAYER_UPGRADES'
@@ -33,11 +37,6 @@ export type SERVER_TICK_MESSAGE = {
     delay: number
 }
 
-export type START_GAME_MESSAGE = {
-    type: 'START_GAME'
-    partyId: string
-}
-
 export type CLIENT_TICK_MESSAGE = {
     type: 'CLIENT_TICK'
     inputs: Array<[number, PlayerInput]>
@@ -46,12 +45,16 @@ export type CLIENT_TICK_MESSAGE = {
 }
 
 export type Message =
+    | LIST_PARTIES_MESSAGE
+    | CREATE_PARTY_MESSAGE
     | JOIN_PARTY_MESSAGE
+    | SET_PARTY_MESSAGE
     | PLAYER_INPUTS
     | SERVER_TICK_MESSAGE
     | PLAYER_UPGRADE_MESSAGE
     | CLIENT_TICK_MESSAGE
     | START_GAME_MESSAGE
+    | SET_PARTY_MESSAGE
 
 type Powerup = 'Sticky Goo' | 'Speed' | 'Food Carry Limit'
 export function selectUpgrade(powerup: Powerup, delta: 1 | -1): PLAYER_UPGRADE_MESSAGE {
@@ -62,27 +65,18 @@ export function selectUpgrade(powerup: Powerup, delta: 1 | -1): PLAYER_UPGRADE_M
     }
 }
 
-export function joinParty(
-    peerId: string,
-    partyId: string,
-    playerName: string,
-    test?: boolean,
-): JOIN_PARTY_MESSAGE {
-    const partyMsg: JOIN_PARTY_MESSAGE = {
-        type: 'JOIN_PARTY',
-        playerName,
-        peerId,
-    }
-    if (test) {
-        partyMsg.test = test
-    }
-    if (partyId) {
-        partyMsg.partyId = partyId
-    }
-
-    return partyMsg
+export function listParties(): LIST_PARTIES_MESSAGE {
+    return { type: 'LIST_PARTIES' }
 }
-
+export function createParty(name: string): CREATE_PARTY_MESSAGE {
+    return { type: 'CREATE_PARTY', name }
+}
+export function joinParty(partyId: string, playerName: string, test?: boolean): JOIN_PARTY_MESSAGE {
+    return { type: 'JOIN_PARTY', playerName, partyId, test }
+}
+export function setParty(id: string): SET_PARTY_MESSAGE {
+    return { type: 'SET_PARTY', id }
+}
 export function startGame(partyId: string): START_GAME_MESSAGE {
     return { type: 'START_GAME', partyId }
 }
@@ -96,12 +90,18 @@ export type stateT = {
 }
 
 export type PartyStatus = 'NOT_STARTED' | 'LOBBY' | 'PLAYING' | 'FINISHED' | 'UPGRADES' | 'TEST'
+export type PartyListing = {
+    id: string
+    name: string
+    players: Array<Player>
+}
+
 export type PartyState = {
+    id: string
+    name: string
     players: Array<Player>
     status: PartyStatus
-    serverTick: number
     game: World | undefined
-    partyId: string
 }
 
 export type Player = {
@@ -135,58 +135,55 @@ export function handleMessage(message: Message, peerId: string) {
         return handleClientTick(message, peerId)
     } else if (message.type === 'START_GAME') {
         return handleStartGame(message)
+    } else if (message.type === 'LIST_PARTIES') {
+        return handleListParties(message, peerId)
+    } else if (message.type === 'CREATE_PARTY') {
+        return handleCreateParty(message, peerId)
+    } else if (message.type === 'SET_PARTY') {
+        return handleSetParty(message, peerId)
     }
+}
+
+function handleListParties(message: LIST_PARTIES_MESSAGE, peerId: string): Array<PartyListing> {
+    const parties = Object.values(state.parties).filter(p => p.status === 'LOBBY')
+    const listings = parties.map(party => ({
+        name: party.name,
+        players: party.players,
+        id: party.id,
+    }))
+    return listings
+}
+
+function handleCreateParty(message: CREATE_PARTY_MESSAGE, peerId: string): PartyState {
+    let id = nextParty++
+    state.parties[id] = {
+        id: String(id),
+        name: message.name,
+        status: 'LOBBY',
+        players: [],
+        game: null,
+    }
+    return state.parties[id]
+}
+
+function handleSetParty(message: SET_PARTY_MESSAGE, peerId: string): void {
+    partyIndex[peerId] = message.id
 }
 
 function handleJoinParty(
     message: JOIN_PARTY_MESSAGE,
     peerId: string,
 ): { partyId: string } | { err: string } {
-    let { partyId, test, playerName } = message
-    // If not specifying a partyId, check to see if should rejoin an in-progress game.
-    if (!partyId) {
-        const rejoiningParty = Object.values(state.parties).find(
-            party =>
-                party.players?.some(player => player.peerId === peerId) &&
-                party.status !== 'FINISHED',
-        )
-
-        if (rejoiningParty) {
-            partyIndex[peerId] = rejoiningParty.partyId
-            return { partyId: rejoiningParty.partyId }
-        }
-    }
-
-    if (state.parties[partyId] && state.parties[partyId].players.length === 4) {
+    const partyId = message.partyId
+    const party = state.parties[partyId]
+    if (party && party.players.length >= 4) {
         return { err: 'Sorry, this party is full' }
     }
 
-    if (!partyId) {
-        partyId = Object.keys(state.parties).find(partyId => {
-            const party = state.parties[partyId]
-            return party.status === 'LOBBY' && party.players.length < maxPartySize
-        })
-    }
-    if (!partyId) {
-        partyId = String(nextParty++)
-    }
-    let party = state.parties[partyId]
-
-    if (!party) {
-        party = state.parties[partyId] = {
-            status: 'LOBBY',
-            players: [],
-            serverTick,
-            game: undefined,
-            partyId,
-        }
-    }
-
-    party.players.push({ peerId, playerName })
-    party.serverTick = serverTick
+    party.players.push({ peerId, playerName: message.playerName })
     partyIndex[peerId] = partyId
 
-    if (test) {
+    if (message.test) {
         handleStartGame(startGame(partyId))
         state.parties[partyId].status = 'TEST'
     }

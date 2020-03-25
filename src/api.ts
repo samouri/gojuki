@@ -23,18 +23,23 @@ export function sendRTC(json: object) {
 }
 
 export function getId() {
-    return peerId
+    return (window as any).PEER_ID
 }
 
 function handleMessage(message: SERVER_TICK_MESSAGE) {
     handleServerTick(message)
 }
 
+let connectedRes: Function
+let connectedPromise = new Promise(res => (connectedRes = res))
+export function onConnect(cb: Function) {
+    connectedPromise.then(() => cb())
+}
+
 export async function initializeRTC() {
     console.log('init peer cxn')
     const { signal, id } = await (await fetch('/signal')).json()
     console.log('successfully fetched signal from server')
-    peerId = id
     peer = (window as any).peer = new (window as any).SimplePeer({
         trickle: false,
         channelConfig: {
@@ -57,6 +62,7 @@ export async function initializeRTC() {
 
     peer.on('connect', function() {
         console.log('CONNECTED')
+        connectedRes()
     })
 
     peer.on('data', function(data: string) {

@@ -4,11 +4,12 @@
  */
 import { PlayerInput, stepPlayer, GamePlayer } from '../server/game'
 import { ReactState } from '../src/index'
-import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState } from '../server/state'
+import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState, PartyStatus } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
 import { stats } from './stats'
+import { navigate } from '@reach/router'
 
 const pressedKeys = new Set()
 window.addEventListener('keydown', event => pressedKeys.add(event.code))
@@ -27,70 +28,49 @@ export function handleServerTick(message: SERVER_TICK_MESSAGE) {
         throw new Error('no message!!')
     }
     state.handleServerMessage(message)
-
-    /* Update global ticks*/
-    const uiState = getUIState(message)
-    if (uiState) {
-        window.appSetState(uiState)
-    }
 }
 
 export const initialUIState: ReactState = {
-    serverConnected: false,
-    players: [],
-    gameStatus: 'NOT_STARTED',
-    upgradesScreen: {
+    isConnected: false,
+    currentParty: null,
+    upgradesMenu: {
         goo: 0,
         food: 0,
         speed: 0,
         carryLimit: 0,
         secondsLeft: 60,
     },
-    scores: [],
-    partyId: undefined,
+    gameOverScreen: { scores: [] },
 }
 
-let cacheUIState: ReactState = { ...initialUIState }
-function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
-    const party: PartyState = message.party
-    // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
-    if (!party && cacheUIState.serverConnected) {
-        return cacheUIState
-    }
+// let cacheUIState: ReactState = { ...initialUIState }
+// function getUIState(message: SERVER_TICK_MESSAGE): any {
+//     const thisPlayer = party?.game?.players[getId()]
+//     const scores = Object.entries(party?.game?.players ?? {})
+//         .sort((x, y) => y[1].food - x[1].food)
+//         .map(([_peerId, player]) => {
+//             return {
+//                 playerName: player.playerName,
+//                 food: player.food,
+//                 playerNumber: player.playerNumber,
+//             }
+//         })
 
-    const thisPlayer = party?.game?.players[getId()]
-    const scores = Object.entries(party?.game?.players ?? {})
-        .sort((x, y) => y[1].food - x[1].food)
-        .map(([_peerId, player]) => {
-            return {
-                playerName: player.playerName,
-                food: player.food,
-                playerNumber: player.playerNumber,
-            }
-        })
-
-    const newUIState = {
-        serverConnected: true,
-        players: party?.players ?? [],
-        gameStatus: party?.status,
-        upgradesScreen: {
-            goo: thisPlayer?.powerups.goo,
-            food: thisPlayer?.food,
-            speed: thisPlayer?.powerups.speed,
-            carryLimit: thisPlayer?.powerups.carryLimit,
-            secondsLeft: party?.game?.roundTimeLeft,
-        },
-        scores,
-        partyId: party?.partyId,
-    }
-
-    if (!_.isEqual(cacheUIState, newUIState)) {
-        cacheUIState = newUIState
-        return cacheUIState
-    }
-
-    return null // TODO: should i be returning null? why not cacheUIState.
-}
+//     return {
+//         isConnected: true,
+//         players: party?.players ?? [],
+//         gameStatus: party?.status,
+//         upgradesScreen: {
+//             goo: thisPlayer?.powerups.goo,
+//             food: thisPlayer?.food,
+//             speed: thisPlayer?.powerups.speed,
+//             carryLimit: thisPlayer?.powerups.carryLimit,
+//             secondsLeft: party?.game?.roundTimeLeft,
+//         },
+//         scores,
+//         partyId: party?.id,
+//     }
+// }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {
     return {
@@ -176,7 +156,7 @@ export class GameState {
         if (message.serverTick < this.serverTick) {
             return
         }
-
+        const oldState = this.serverState
         stats.nextAck({
             ackedTickId: message.clientTick,
             serverTick: message.serverTick,
@@ -226,8 +206,29 @@ export class GameState {
             // size 1 or 2 for enemy states, and tweening them to their next position.
             // buffer should help smooth out the visual effects of jitter.
         }
+
+        // TODO: get this the fuck outta here.
+        if (oldState?.status !== this.serverState.status) {
+            navigateForGameStatus(this.serverState.status, this.serverState.id)
+        }
     }
 }
 
 export const state = new GameState()
 ;(window as any).gamestate = state
+
+function navigateForGameStatus(status: PartyStatus, partyId: string): void {
+    if (status === 'NOT_STARTED') {
+        navigate(`/`)
+    } else if (status === 'LOBBY') {
+        navigate(`/party/${partyId}`)
+    } else if (status === 'UPGRADES') {
+        navigate(`/upgrades/${partyId}`)
+    } else if (status === 'PLAYING') {
+        navigate(`/game/${partyId}`)
+    } else if (status === 'TEST') {
+        navigate(`/test/${partyId}`)
+    } else if (status === 'FINISHED') {
+        navigate(`/finished/${partyId}`)
+    }
+}

@@ -17,6 +17,7 @@ app.use(
     }),
 )
 
+app.get('/', (req, res) => res.send(html.replace(`{PEER_ID}`, req.sessionID)))
 app.use(express.static(path.resolve(__dirname, '..', 'dist')))
 app.get('/signal', async (req, res) => {
     state.initTicks(req.sessionID)
@@ -31,11 +32,13 @@ app.post('/signal', (req, res) => {
 
 app.post('/api', (req, res) => {
     const resp = handleMessage(req.body as Message, req.sessionID)
-    console.log(JSON.stringify(resp))
     res.json(resp)
 })
 
-app.get('/*', (req, res) => res.sendFile(path.resolve(__dirname, '..', 'dist/index.html')))
+const html: string = require('fs').readFileSync(path.resolve(__dirname, '..', 'dist/index.html'), {
+    encoding: 'utf8',
+})
+app.get('/*', (req, res) => res.send(html.replace(`{PEER_ID}`, req.sessionID)))
 
 const port = process.env.PORT || 3000
 console.log(`Load up the game at: http://localhost:${port}`)

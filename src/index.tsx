@@ -4,81 +4,56 @@ import swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
 import './style.css'
 import { Router, Link, RouteComponentProps, navigate } from '@reach/router'
-import { joinParty, startGame, Player, selectUpgrade, PartyStatus } from '../server/state'
+import {
+    joinParty,
+    startGame,
+    Player,
+    selectUpgrade,
+    PartyStatus,
+    PartyListing,
+    createParty,
+    listParties,
+    setParty,
+} from '../server/state'
 import { getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { Instance } from 'simple-peer'
 import { initialUIState, state as gameState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
-import { sendTCP, initializeRTC, getId } from './api'
-import * as _ from 'lodash';
+import { sendTCP, initializeRTC, getId, onConnect } from './api'
+import * as _ from 'lodash'
 import { sleep } from './timer'
 import { stats } from './stats'
-
-declare global {
-    interface Window {
-        appSetState: any
-    }
-}
 
 const Swal = withReactContent(swal)
 
 const fontFamily = "'Press Start 2P', cursive"
 
 export type ReactState = {
-    serverConnected: boolean
-    players: Array<Player>
-    gameStatus: PartyStatus
-    upgradesScreen: {
-        secondsLeft: number
-        goo: number
-        speed: number
-        carryLimit: number
-        food: number
-    }
-    scores: Array<{ playerNumber: number; food: number; playerName: string }>
-    partyId: string
+    isConnected: boolean
+    currentParty: { id: string; status: PartyStatus } | null
+    gameOverScreen: GameOverScreenProps
+    upgradesMenu: UpgradesMenuProps
 }
+
 class App extends React.Component {
     state: ReactState = initialUIState
 
     componentDidMount() {
-        window.appSetState = (s: any) => this.setState(s)
-    }
-    componentDidUpdate(_prevProps: any, prevState: ReactState) {
-        const { gameStatus, partyId } = this.state
-
-        if (
-            prevState.gameStatus !== gameStatus &&
-            this.state.partyId === _.last(window.location.pathname.split('/'))
-        ) {
-            // TODO: add one for homescreen
-            if (gameStatus === 'NOT_STARTED') {
-                navigate(`/`)
-            } else if (gameStatus === 'LOBBY') {
-                navigate(`/party/${partyId}`)
-            } else if (gameStatus === 'UPGRADES') {
-                navigate(`/upgrades/${partyId}`)
-            } else if (gameStatus === 'PLAYING') {
-                navigate(`/game/${partyId}`)
-            } else if (gameStatus === 'TEST') {
-                navigate(`/test/${partyId}`)
-            } else if (gameStatus === 'FINISHED') {
-                navigate(`/finished/${partyId}`)
-            }
-        }
+        onConnect(() => this.setState({ isConnected: true }))
     }
 
     render() {
         return (
             <div className="app">
                 <Router style={{ width: '100%', height: '100%' }}>
-                    <StartScreen path="/" isConnected={this.state.serverConnected} />
-                    <PartyScreen path="/party/:partyId" clientState={this.state} />
-                    <UpgradesMenu path="/upgrades/:partyId" clientState={this.state} />
+                    <StartScreen path="/" isConnected={this.state.isConnected} />
+                    <PartySelectionScreen path="/select-lobby" />
+                    <PartyScreen path="/party/:partyId" />
+                    <UpgradesMenu path="/upgrades/:partyId" {...this.state.upgradesMenu} />
                     <GameScreen path="/game/:partyId" clientState={this.state} />
                     <GameScreen path="/test/:partyId" clientState={this.state} />
-                    <GameOverScreen path="/finished/:partyId" {...this.state} />
+                    <GameOverScreen path="/finished/:partyId" {...this.state.gameOverScreen} />
                 </Router>
             </div>
         )
@@ -104,46 +79,136 @@ class Header extends React.Component {
     }
 }
 
-function shouldJoinParty(state: ReactState, partyId: string) {
-    const isConnected = state?.serverConnected
-    return isConnected && !state?.partyId
-}
-
-/* partyId refers to the one in the URL */
-function ensureInParty(partyId: string, getState: () => ReactState): Promise<void> {
-    const state = getState()
-    if (state?.partyId) {
-        return Promise.resolve()
-    }
-
-    if (shouldJoinParty(state, partyId)) {
-        const test = window.location.pathname.includes('test')
-        sendTCP(joinParty(getId(), partyId, prompt('What is your player name'), test)).catch(
-            err => {
-                console.error(err)
-                navigate('/')
-            },
-        )
-    }
-    console.log('still connecting')
-
-    return sleep(400).then(() => ensureInParty(partyId, getState))
-}
-
-class PartyScreen extends React.Component<
-    RouteComponentProps<{ partyId: string }> & { clientState: ReactState }
-> {
+class PartySelectionScreen extends React.Component<RouteComponentProps> {
+    state: { parties: Array<PartyListing> } = { parties: [] }
     componentDidMount() {
-        ensureInParty(this.props.partyId, () => this.props.clientState)
+        sendTCP(listParties())
+            .then(res => res.json())
+            .then(parties => {
+                console.log({ parties })
+                this.setState({ parties })
+            })
+    }
+
+    createParty() {
+        const lobbyName = prompt('pick a lobby name')
+        if (!lobbyName) {
+            return
+        }
+        sendTCP(createParty(lobbyName))
+            .then(res => res.json())
+            .then(({ id }) => this.joinParty(id))
+            .catch(err => {
+                console.error(err)
+            })
+    }
+
+    joinParty(id: string) {
+        const playerName = prompt('choose a player name')
+        if (!playerName) {
+            return
+        }
+        sendTCP(joinParty(id, playerName))
+            .then(() => navigate(`/party/${id}`))
+            .catch(err => {
+                console.error(err)
+            })
     }
 
     render() {
-        let { players, partyId } = this.props.clientState
-        players = this.props.clientState.partyId === this.props.partyId ? players : []
+        const { parties } = this.state
+        return (
+            <div
+                className="partySelectionScreen"
+                style={{
+                    width: '100%',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                }}
+            >
+                <Header />
+                <h1 style={{ fontSize: 32, fontFamily, color: '#e91e63' }}>Available Parties</h1>
+                <div
+                    id="parties-list"
+                    style={{
+                        maxHeight: '600px',
+                        overflow: 'auto',
+                        flexDirection: 'column',
+                    }}
+                >
+                    <div>
+                        <div>Name</div> <div># players</div>
+                    </div>
+                    {parties.map(({ name, id, players }) => {
+                        const inParty = !!players.find(p => p.peerId === getId())
+                        console.log(`id: ${getId()}, players: ${JSON.stringify(players)}`)
+                        return (
+                            <div
+                                style={{
+                                    paddingBottom: '15',
+                                    color: 'white',
+                                    borderBlock: '1px solid line',
+                                }}
+                                key={id}
+                            >
+                                <div style={{ width: 100 }}>{name} </div>
+                                <div style={{ width: 100 }}>{players.length} </div>
+                                {!inParty && (
+                                    <button onClick={() => this.joinParty(id)}>join</button>
+                                )}
+                                {inParty && (
+                                    <button onClick={() => navigate(`/party/${id}`)}>rejoin</button>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+                <button className="app__playbtn" onClick={() => this.createParty()}>
+                    Create party
+                </button>
+            </div>
+        )
+    }
+}
+
+class PartyScreen extends React.Component<RouteComponentProps<{ partyId: string }>> {
+    isMounted_ = false
+    state: { players: Array<Player>; loading: boolean } = {
+        players: [],
+        loading: true,
+    }
+
+    componentDidMount() {
+        sendTCP(setParty(this.props.partyId))
+        this.isMounted_ = true
+        this.refreshLoop()
+    }
+    componentWillUnmount() {
+        this.isMounted_ = false
+    }
+
+    async refreshLoop() {
+        while (this.isMounted_) {
+            const party = gameState.getParty()
+            const players = party?.players
+            if (players) {
+                this.setState({ players })
+                if (this.state.loading) {
+                    this.setState({ loading: false })
+                }
+            }
+            await sleep(100)
+        }
+    }
+
+    render() {
+        let { partyId } = this.props
+        let { players } = this.state
 
         const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
         const maxPlayers = 4
         const waitingFor = maxPlayers - players.length
+        const inLobby = !!players.find(p => p.peerId === getId())
 
         return (
             <div
@@ -156,9 +221,14 @@ class PartyScreen extends React.Component<
             >
                 <Header />
                 <h1 style={{ fontSize: 32, fontFamily, color: '#e91e63' }}>Party Lobby</h1>
-                <h1 style={{ fontSize: 18, fontFamily, color: 'white' }}>
-                    Waiting for {waitingFor} more player(s)...
-                </h1>
+                {this.state.loading && (
+                    <h1 style={{ fontSize: 18, fontFamily, color: 'white' }}>Loading...</h1>
+                )}
+                {!this.state.loading && (
+                    <h1 style={{ fontSize: 18, fontFamily, color: 'white' }}>
+                        Waiting for {waitingFor} more player(s)...
+                    </h1>
+                )}
                 <ul id="player-list">
                     {players.map(({ playerName }, i) => (
                         <li
@@ -173,23 +243,41 @@ class PartyScreen extends React.Component<
                         </li>
                     ))}
                 </ul>
-                <button
-                    className="app__playbtn"
-                    onClick={() => {
-                        sendTCP(startGame(partyId))
-                    }}
-                    disabled={!partyId}
-                >
-                    Start game
-                </button>
+                {!this.state.loading && inLobby && (
+                    <button
+                        className="app__playbtn"
+                        onClick={() => {
+                            sendTCP(startGame(partyId))
+                        }}
+                        disabled={!partyId}
+                    >
+                        Start game
+                    </button>
+                )}
+                {!this.state.loading && !inLobby && (
+                    <button
+                        className="app__playbtn"
+                        onClick={() => {
+                            const playerName = prompt('what is your player name')
+                            if (!playerName) {
+                                return
+                            }
+                            sendTCP(joinParty(partyId, playerName))
+                        }}
+                        disabled={!partyId}
+                    >
+                        Join lobby
+                    </button>
+                )}
             </div>
         )
     }
 }
 
-class GameOverScreen extends React.Component<RouteComponentProps & ReactState> {
-    state = {}
-
+type GameOverScreenProps = {
+    scores: Array<{ playerNumber: number; food: number; playerName: string }>
+}
+class GameOverScreen extends React.Component<RouteComponentProps & GameOverScreenProps> {
     render() {
         const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
         const winnerColor = playerColors[this.props.scores?.[0]?.playerNumber - 1]
@@ -253,12 +341,7 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
                     <button
                         className="app__playbtn"
                         onClick={() => {
-                            const playerName = prompt('What is your player name?')
-                            sendTCP(joinParty(getId(), undefined, playerName))
-                                .then(resp => resp.json())
-                                .then(({ partyId }) => {
-                                    navigate(`/party/${partyId}`)
-                                })
+                            navigate(`/select-lobby`)
                         }}
                     >
                         Play
@@ -287,12 +370,12 @@ class GameScreen extends React.Component<
             this._animationCb = requestAnimationFrame(this.gameLoop)
         }
         // TODO: defer these to the first real draw after server connection
-        if (this.props.clientState.serverConnected) {
+        if (this.props.clientState.isConnected) {
             sounds.play.currentTime = 0
             sounds.play.play()
         }
 
-        ensureInParty(this.props.partyId, () => this.props.clientState)
+        // ensureInParty(this.props.partyId, () => this.props.clientState)
     }
 
     componentWillUnmount() {
@@ -387,9 +470,16 @@ class About extends React.Component {
     }
 }
 
-class UpgradesMenu extends React.Component<RouteComponentProps & { clientState: ReactState }> {
+type UpgradesMenuProps = {
+    secondsLeft: number
+    goo: number
+    speed: number
+    carryLimit: number
+    food: number
+}
+class UpgradesMenu extends React.Component<RouteComponentProps & UpgradesMenuProps> {
     render() {
-        const data = this.props.clientState.upgradesScreen
+        const data = this.props
 
         return (
             <div
