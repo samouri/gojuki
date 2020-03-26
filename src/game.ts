@@ -22,55 +22,6 @@ export function getPressedKeys(): PlayerInput {
     }
 }
 
-export function handleServerTick(message: SERVER_TICK_MESSAGE) {
-    if (!message) {
-        throw new Error('no message!!')
-    }
-    state.handleServerMessage(message)
-}
-
-export const initialUIState: ReactState = {
-    isConnected: false,
-    currentParty: null,
-    upgradesMenu: {
-        goo: 0,
-        food: 0,
-        speed: 0,
-        carryLimit: 0,
-        secondsLeft: 60,
-    },
-    gameOverScreen: { scores: [] },
-}
-
-// let cacheUIState: ReactState = { ...initialUIState }
-// function getUIState(message: SERVER_TICK_MESSAGE): any {
-//     const thisPlayer = party?.game?.players[getId()]
-//     const scores = Object.entries(party?.game?.players ?? {})
-//         .sort((x, y) => y[1].food - x[1].food)
-//         .map(([_peerId, player]) => {
-//             return {
-//                 playerName: player.playerName,
-//                 food: player.food,
-//                 playerNumber: player.playerNumber,
-//             }
-//         })
-
-//     return {
-//         isConnected: true,
-//         players: party?.players ?? [],
-//         gameStatus: party?.status,
-//         upgradesScreen: {
-//             goo: thisPlayer?.powerups.goo,
-//             food: thisPlayer?.food,
-//             speed: thisPlayer?.powerups.speed,
-//             carryLimit: thisPlayer?.powerups.carryLimit,
-//             secondsLeft: party?.game?.roundTimeLeft,
-//         },
-//         scores,
-//         partyId: party?.id,
-//     }
-// }
-
 export function getClientTick(): CLIENT_TICK_MESSAGE {
     return {
         type: 'CLIENT_TICK',

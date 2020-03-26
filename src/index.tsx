@@ -16,12 +16,10 @@ import {
     setParty,
 } from '../server/state'
 import { getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
-import { Instance } from 'simple-peer'
-import { initialUIState, state as gameState } from './game'
+import { state as gameState } from './game'
 import { drawWorld } from './draw'
 import { playEffects, sounds } from './assets'
 import { sendTCP, initializeRTC, getId, onConnect } from './api'
-import * as _ from 'lodash'
 import { sleep } from './timer'
 import { stats } from './stats'
 

@@ -1,9 +1,8 @@
 import { Message, SERVER_TICK_MESSAGE } from '../server/state'
-import { handleServerTick } from './game'
+import { state } from './game'
 import SimplePeer from 'simple-peer'
 
 let peer: SimplePeer.Instance
-let peerId: string
 
 export function isConnected() {
     return peer && (peer as any)._channel && (peer as any)._channel.readyState === 'open'
@@ -24,10 +23,6 @@ export function sendRTC(json: object) {
 
 export function getId() {
     return (window as any).PEER_ID
-}
-
-function handleMessage(message: SERVER_TICK_MESSAGE) {
-    handleServerTick(message)
 }
 
 let connectedRes: Function
@@ -66,7 +61,7 @@ export async function initializeRTC() {
     })
 
     peer.on('data', function(data: string) {
-        handleMessage(JSON.parse(data) as SERVER_TICK_MESSAGE)
+        state.handleServerMessage(JSON.parse(data) as SERVER_TICK_MESSAGE)
     })
 
     // get this show on the road
