@@ -44,7 +44,10 @@ class App extends React.Component {
                     <UpgradesMenu path="/upgrades/:partyId" />
                     <GameScreen path="/game/:partyId" isConnected={this.state.isConnected} />
                     <GameScreen path="/test/:partyId" isConnected={this.state.isConnected} />
-                    <GameOverScreen path="/finished/:partyId" />
+                    <GameOverScreen
+                        path="/finished/:partyId"
+                        isConnected={this.state.isConnected}
+                    />
                 </Router>
             </div>
         )
@@ -270,11 +273,7 @@ class PartyScreen extends React.Component<RouteComponentProps<{ partyId: string 
     }
 }
 
-class GameOverScreen extends React.Component<RouteComponentProps> {
-    state = { isConnected: false }
-    componentDidMount() {
-        onConnect(() => this.setState({ isConnected: true }))
-    }
+class GameOverScreen extends React.Component<RouteComponentProps & { isConnected: boolean }> {
     render() {
         const players = gameState.getParty()?.game?.players ?? {}
         const scores = Object.entries(players)
@@ -301,10 +300,10 @@ class GameOverScreen extends React.Component<RouteComponentProps> {
                 }}
             >
                 <Header />
-                {this.state.isConnected || (
+                {this.props.isConnected || (
                     <h1 style={{ fontSize: 32, fontFamily, color: 'red' }}> Loading...</h1>
                 )}
-                {this.state.isConnected && (
+                {this.props.isConnected && (
                     <>
                         <h1
                             style={{
