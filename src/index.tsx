@@ -74,8 +74,8 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
     state: { parties: Array<PartyListing> } = { parties: [] }
     componentDidMount() {
         sendTCP(listParties())
-            .then(res => res.json())
-            .then(parties => {
+            .then((res) => res.json())
+            .then((parties) => {
                 console.log({ parties })
                 this.setState({ parties })
             })
@@ -87,9 +87,9 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
             return
         }
         sendTCP(createParty(lobbyName))
-            .then(res => res.json())
+            .then((res) => res.json())
             .then(({ id }) => this.joinParty(id))
-            .catch(err => {
+            .catch((err) => {
                 console.error(err)
             })
     }
@@ -99,7 +99,7 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
         if (!playerName) {
             return
         }
-        sendTCP(joinParty(id, playerName)).catch(err => {
+        sendTCP(joinParty(id, playerName)).catch((err) => {
             console.error(err)
         })
     }
@@ -129,7 +129,7 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
                         <div>Name</div> <div># players</div>
                     </div>
                     {parties.map(({ name, id, players, status }) => {
-                        const inParty = !!players.find(p => p.peerId === getId())
+                        const inParty = !!players.find((p) => p.peerId === getId())
                         console.log(`id: ${getId()}, players: ${JSON.stringify(players)}`)
                         return (
                             <div
@@ -199,7 +199,7 @@ class PartyScreen extends React.Component<RouteComponentProps<{ partyId: string 
         const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
         const maxPlayers = 4
         const waitingFor = maxPlayers - players.length
-        const inLobby = !!players.find(p => p.peerId === getId())
+        const inLobby = !!players.find((p) => p.peerId === getId())
 
         return (
             <div
@@ -432,7 +432,7 @@ class GameScreen extends React.Component<
                 <canvas
                     id="game"
                     style={{ width, height }}
-                    ref={canvas => {
+                    ref={(canvas) => {
                         if (!canvas) {
                             return
                         }
@@ -611,7 +611,7 @@ class HowToPlay extends React.Component {
 }
 
 window.onload = function init() {
-    initializeRTC().catch(err => console.error(err))
+    initializeRTC().catch((err) => console.error(err))
     ReactDOM.render(<App />, document.getElementById('app'))
 }
 

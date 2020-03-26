@@ -145,11 +145,11 @@ export function handleMessage(message: Message, peerId: string) {
 }
 
 function handleListParties(message: LIST_PARTIES_MESSAGE, peerId: string): Array<PartyListing> {
-    const isInParty = (party: PartyState) => !!party.players.find(p => p.peerId === peerId)
+    const isInParty = (party: PartyState) => !!party.players.find((p) => p.peerId === peerId)
     const parties = Object.values(state.parties).filter(
-        p => p.status === 'LOBBY' || (p.status !== 'FINISHED' && isInParty(p)),
+        (p) => p.status === 'LOBBY' || (p.status !== 'FINISHED' && isInParty(p)),
     )
-    const listings = parties.map(party => ({
+    const listings = parties.map((party) => ({
         name: party.name,
         players: party.players,
         id: party.id,
@@ -239,8 +239,8 @@ function handleClientTick(message: CLIENT_TICK_MESSAGE, peerId: string) {
     }
 
     let inputs: Array<PlayerInput> = message.inputs
-        .filter(elem => elem[0] > prevClientTick)
-        .map(elem => elem[1])
+        .filter((elem) => elem[0] > prevClientTick)
+        .map((elem) => elem[1])
 
     // This is awful anti-cheat logic. Right now clients can make 4 moves every move.
     // TODO: use bursty api logic. hold a counter from 0 that increments up by one every 16ms w/ a low max. that num represents how many moves a client can make.

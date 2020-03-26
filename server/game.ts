@@ -211,7 +211,7 @@ export function stepWorld(party: PartyState, serverTick: number) {
         // ROUND 3 alert
         if (party.status === 'UPGRADES') {
             // reset positions
-            party.game.players = _.mapValues(party.game.players, player => ({
+            party.game.players = _.mapValues(party.game.players, (player) => ({
                 ...getDefaultPosition(player.playerNumber),
                 ...player,
             }))
@@ -291,7 +291,7 @@ function isSticky(player: GamePlayer): boolean {
 }
 
 function runIntoGoo(world: World, player: GamePlayer) {
-    world.goo = world.goo.filter(goo => {
+    world.goo = world.goo.filter((goo) => {
         if (isTouching(goo, player) && goo.playerNum !== player.playerNumber) {
             player.timings.lastGooHit = Date.now()
             return false
@@ -311,7 +311,7 @@ function depositFood(world: World, player: GamePlayer) {
 
 /* O(n^2): may need to improve this since it runs on each frame. */
 function eatFood(world: World, player: GamePlayer) {
-    world.food = world.food.filter(food => {
+    world.food = world.food.filter((food) => {
         if (isTouching(food, player)) {
             if (player.carriedFood < player.powerups.carryLimit + 5) {
                 player.carriedFood += 1

@@ -11,8 +11,8 @@ import { setCorrectingInterval } from './timer'
 import { stats } from './stats'
 
 const pressedKeys = new Set()
-window.addEventListener('keydown', event => pressedKeys.add(event.code))
-window.addEventListener('keyup', event => pressedKeys.delete(event.code))
+window.addEventListener('keydown', (event) => pressedKeys.add(event.code))
+window.addEventListener('keyup', (event) => pressedKeys.delete(event.code))
 export function getPressedKeys(): PlayerInput {
     return {
         left: pressedKeys.has('ArrowLeft'),
@@ -147,7 +147,7 @@ export class GameState {
             stepPlayer(
                 this.clientState.game,
                 this.getPlayerId_(),
-                this.inputs.map(x => x[1]),
+                this.inputs.map((x) => x[1]),
             )
         }
 

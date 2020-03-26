@@ -11,7 +11,7 @@ import { getId } from './api'
 import { stats } from './stats'
 
 let debugMode = false
-window.addEventListener('keydown', event => {
+window.addEventListener('keydown', (event) => {
     if (event.code === 'KeyD') {
         debugMode = !debugMode
     }
@@ -21,9 +21,9 @@ export function drawWorld(ctx: CanvasRenderingContext2D, world: World) {
     const players = Object.values(world.players)
     drawArena(ctx, players)
 
-    world.food.forEach(food => drawFood(ctx, food))
-    world.goo.forEach(goo => drawGoo(ctx, goo))
-    players.forEach(p => drawPlayer(ctx, p))
+    world.food.forEach((food) => drawFood(ctx, food))
+    world.goo.forEach((goo) => drawGoo(ctx, goo))
+    players.forEach((p) => drawPlayer(ctx, p))
     drawHUD(ctx, world)
 }
 
@@ -112,7 +112,7 @@ function drawArena(ctx: CanvasRenderingContext2D, players: Array<GamePlayer>) {
     const { width, height } = getGameDimensions()
     ctx.clearRect(0, HUD_HEIGHT, width, height)
 
-    players.forEach(player => {
+    players.forEach((player) => {
         const cfg = PLAYER_CONFIG[player.playerNumber]
         ctx.fillStyle = cfg.color
         ctx.fillRect(cfg.basePosition.x, cfg.basePosition.y + HUD_HEIGHT, 70, 70)

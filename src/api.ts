@@ -27,7 +27,7 @@ export function getId() {
 }
 
 let connectedRes: Function
-let connectedPromise = new Promise(res => (connectedRes = res))
+let connectedPromise = new Promise((res) => (connectedRes = res))
 export function onConnect(cb: Function) {
     connectedPromise.then(() => cb())
 }
@@ -43,7 +43,7 @@ export async function initializeRTC() {
             maxRetransmits: 0,
         },
     })
-    peer.on('signal', function(data: string) {
+    peer.on('signal', function (data: string) {
         console.log('sending our signal to the server')
         fetch('/signal', {
             method: 'POST',
@@ -56,12 +56,12 @@ export async function initializeRTC() {
         })
     })
 
-    peer.on('connect', function() {
+    peer.on('connect', function () {
         console.log('CONNECTED')
         connectedRes()
     })
 
-    peer.on('data', function(data: string) {
+    peer.on('data', function (data: string) {
         state.handleServerMessage(JSON.parse(data) as SERVER_TICK_MESSAGE)
         navigateForGameStatus(state.getParty()?.status, state.getParty()?.id)
     })
