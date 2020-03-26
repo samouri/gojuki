@@ -6,7 +6,7 @@
         "ui": "parcel watch index.html",
         "build-ui": "parcel build index.html",
         "build-server": "tsc --downlevelIteration server/index.ts",
-				"build-docker": "docker build --rm -t samouri/gojuki .",
+        "build-docker": "docker build --rm -t samouri/gojuki .",
         "clean": "rm -f server/*.js && rm -rf dist",
         "test": "jest --colors"
     },

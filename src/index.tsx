@@ -99,11 +99,9 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
         if (!playerName) {
             return
         }
-        sendTCP(joinParty(id, playerName))
-            .then(() => navigate(`/party/${id}`))
-            .catch(err => {
-                console.error(err)
-            })
+        sendTCP(joinParty(id, playerName)).catch(err => {
+            console.error(err)
+        })
     }
 
     render() {
@@ -618,17 +616,25 @@ window.onload = function init() {
 }
 
 export function navigateForGameStatus(status: PartyStatus, partyId: string): void {
-    if (status === 'NOT_STARTED') {
-        navigate(`/`)
-    } else if (status === 'LOBBY') {
-        navigate(`/party/${partyId}`)
+    if (!status || !partyId) {
+        return
+    }
+
+    const currentPath = window.location.pathname
+    let nextPath
+    if (status === 'LOBBY' || status === 'NOT_STARTED') {
+        nextPath = `/party/${partyId}`
     } else if (status === 'UPGRADES') {
-        navigate(`/upgrades/${partyId}`)
+        nextPath = `/upgrades/${partyId}`
     } else if (status === 'PLAYING') {
-        navigate(`/game/${partyId}`)
+        nextPath = `/game/${partyId}`
     } else if (status === 'TEST') {
-        navigate(`/test/${partyId}`)
+        nextPath = `/test/${partyId}`
     } else if (status === 'FINISHED') {
-        navigate(`/finished/${partyId}`)
+        nextPath = `/finished/${partyId}`
+    }
+
+    if (currentPath !== nextPath) {
+        navigate(nextPath)
     }
 }

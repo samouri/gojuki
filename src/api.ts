@@ -1,6 +1,7 @@
 import { Message, SERVER_TICK_MESSAGE } from '../server/state'
 import { state } from './game'
 import SimplePeer from 'simple-peer'
+import { navigateForGameStatus } from '.'
 
 let peer: SimplePeer.Instance
 
@@ -62,6 +63,7 @@ export async function initializeRTC() {
 
     peer.on('data', function(data: string) {
         state.handleServerMessage(JSON.parse(data) as SERVER_TICK_MESSAGE)
+        navigateForGameStatus(state.getParty()?.status, state.getParty()?.id)
     })
 
     // get this show on the road
