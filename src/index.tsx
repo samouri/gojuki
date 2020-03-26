@@ -76,7 +76,6 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
         sendTCP(listParties())
             .then((res) => res.json())
             .then((parties) => {
-                console.log({ parties })
                 this.setState({ parties })
             })
     }

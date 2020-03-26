@@ -156,11 +156,6 @@ export class GameState {
             // size 1 or 2 for enemy states, and tweening them to their next position.
             // buffer should help smooth out the visual effects of jitter.
         }
-
-        // TODO: get this the fuck outta here.
-        if (oldState?.status !== this.serverState.status) {
-            navigateForGameStatus(this.serverState.status, this.serverState.id)
-        }
     }
 }
 
