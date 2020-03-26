@@ -3,7 +3,6 @@
  * This includes: canvas details, event handlers, and rendering.
  */
 import { PlayerInput, stepPlayer, GamePlayer } from '../server/game'
-import { navigateForGameStatus } from '../src/index'
 import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState, PartyStatus } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC, getId, isConnected } from './api'

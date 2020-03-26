@@ -9,11 +9,11 @@ import {
     startGame,
     Player,
     selectUpgrade,
-    PartyStatus,
     PartyListing,
     createParty,
     listParties,
     setParty,
+    PartyState,
 } from '../server/state'
 import { getGameDimensions, HUD_HEIGHT, powerups } from '../server/game'
 import { state as gameState } from './game'
@@ -98,9 +98,11 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
         if (!playerName) {
             return
         }
-        sendTCP(joinParty(id, playerName)).catch((err) => {
-            console.error(err)
-        })
+        sendTCP(joinParty(id, playerName))
+            .then(() => navigate(`/party/${id}`))
+            .catch((err) => {
+                console.error(err)
+            })
     }
 
     render() {
@@ -145,9 +147,7 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
                                     <button onClick={() => this.joinParty(id)}>join</button>
                                 )}
                                 {inParty && (
-                                    <button onClick={() => navigateForGameStatus(status, id)}>
-                                        rejoin
-                                    </button>
+                                    <button onClick={() => navigate(`/party/${id}`)}>rejoin</button>
                                 )}
                             </div>
                         )
@@ -186,6 +186,12 @@ class PartyScreen extends React.Component<RouteComponentProps<{ partyId: string 
                 if (this.state.loading) {
                     this.setState({ loading: false })
                 }
+            }
+            if (
+                party?.id === this.props.partyId &&
+                getPathForParty(party) !== window.location.pathname
+            ) {
+                navigate(getPathForParty(party))
             }
             await sleep(100)
         }
@@ -237,7 +243,7 @@ class PartyScreen extends React.Component<RouteComponentProps<{ partyId: string 
                     <button
                         className="app__playbtn"
                         onClick={() => {
-                            sendTCP(startGame(partyId))
+                            sendTCP(startGame(partyId)).then(() => navigate(`/game/${partyId}`))
                         }}
                         disabled={!partyId}
                     >
@@ -614,26 +620,37 @@ window.onload = function init() {
     ReactDOM.render(<App />, document.getElementById('app'))
 }
 
-export function navigateForGameStatus(status: PartyStatus, partyId: string): void {
-    if (!status || !partyId) {
+export function navigateForParty(party: PartyState): void {
+    if (!party?.status || !party?.id) {
         return
     }
 
+    const gamePaths = ['/upgrades', '/game', '/test']
     const currentPath = window.location.pathname
-    let nextPath
-    if (status === 'LOBBY' || status === 'NOT_STARTED') {
-        nextPath = `/party/${partyId}`
-    } else if (status === 'UPGRADES') {
-        nextPath = `/upgrades/${partyId}`
-    } else if (status === 'PLAYING') {
-        nextPath = `/game/${partyId}`
-    } else if (status === 'TEST') {
-        nextPath = `/test/${partyId}`
-    } else if (status === 'FINISHED') {
-        nextPath = `/finished/${partyId}`
+    if (!gamePaths.some((str) => currentPath.startsWith(str))) {
+        return
     }
+
+    let nextPath = getPathForParty(party)
 
     if (currentPath !== nextPath) {
         navigate(nextPath)
+    }
+}
+
+function getPathForParty(party: PartyState) {
+    if (!party?.status) {
+        return
+    }
+
+    const status = party.status
+    if (status === 'UPGRADES') {
+        return `/upgrades/${party.id}`
+    } else if (status === 'PLAYING') {
+        return `/game/${party.id}`
+    } else if (status === 'TEST') {
+        return `/test/${party.id}`
+    } else if (status === 'FINISHED') {
+        return `/finished/${party.id}`
     }
 }
