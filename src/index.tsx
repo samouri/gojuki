@@ -29,15 +29,8 @@ const Swal = withReactContent(swal)
 
 const fontFamily = "'Press Start 2P', cursive"
 
-export type ReactState = {
-    isConnected: boolean
-    currentParty: { id: string; status: PartyStatus } | null
-    gameOverScreen: GameOverScreenProps
-    upgradesMenu: UpgradesMenuProps
-}
-
 class App extends React.Component {
-    state: ReactState = initialUIState
+    state = { isConnected: false }
 
     componentDidMount() {
         onConnect(() => this.setState({ isConnected: true }))
@@ -50,10 +43,10 @@ class App extends React.Component {
                     <StartScreen path="/" isConnected={this.state.isConnected} />
                     <PartySelectionScreen path="/select-lobby" />
                     <PartyScreen path="/party/:partyId" />
-                    <UpgradesMenu path="/upgrades/:partyId" {...this.state.upgradesMenu} />
-                    <GameScreen path="/game/:partyId" clientState={this.state} />
-                    <GameScreen path="/test/:partyId" clientState={this.state} />
-                    <GameOverScreen path="/finished/:partyId" {...this.state.gameOverScreen} />
+                    <UpgradesMenu path="/upgrades/:partyId" />
+                    <GameScreen path="/game/:partyId" isConnected={this.state.isConnected} />
+                    <GameScreen path="/test/:partyId" isConnected={this.state.isConnected} />
+                    <GameOverScreen path="/finished/:partyId" />
                 </Router>
             </div>
         )
@@ -139,7 +132,7 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
                     <div>
                         <div>Name</div> <div># players</div>
                     </div>
-                    {parties.map(({ name, id, players }) => {
+                    {parties.map(({ name, id, players, status }) => {
                         const inParty = !!players.find(p => p.peerId === getId())
                         console.log(`id: ${getId()}, players: ${JSON.stringify(players)}`)
                         return (
@@ -157,7 +150,9 @@ class PartySelectionScreen extends React.Component<RouteComponentProps> {
                                     <button onClick={() => this.joinParty(id)}>join</button>
                                 )}
                                 {inParty && (
-                                    <button onClick={() => navigate(`/party/${id}`)}>rejoin</button>
+                                    <button onClick={() => navigateForGameStatus(status, id)}>
+                                        rejoin
+                                    </button>
                                 )}
                             </div>
                         )
@@ -274,14 +269,26 @@ class PartyScreen extends React.Component<RouteComponentProps<{ partyId: string 
     }
 }
 
-type GameOverScreenProps = {
-    scores: Array<{ playerNumber: number; food: number; playerName: string }>
-}
-class GameOverScreen extends React.Component<RouteComponentProps & GameOverScreenProps> {
+class GameOverScreen extends React.Component<RouteComponentProps> {
+    state = { isConnected: false }
+    componentDidMount() {
+        onConnect(() => this.setState({ isConnected: true }))
+    }
     render() {
+        const players = gameState.getParty()?.game?.players ?? {}
+        const scores = Object.entries(players)
+            .sort((x, y) => y[1].food - x[1].food)
+            .map(([_id, player]) => {
+                return {
+                    playerName: player.playerName,
+                    food: player.food,
+                    playerNumber: player.playerNumber,
+                }
+            })
+
         const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
-        const winnerColor = playerColors[this.props.scores?.[0]?.playerNumber - 1]
-        const winnerName = this.props.scores?.[0]?.playerName
+        const winnerColor = playerColors[scores?.[0]?.playerNumber - 1]
+        const winnerName = scores?.[0]?.playerName
 
         return (
             <div
@@ -293,29 +300,36 @@ class GameOverScreen extends React.Component<RouteComponentProps & GameOverScree
                 }}
             >
                 <Header />
-                <h1
-                    style={{
-                        fontSize: 32,
-                        fontFamily,
-                        color: winnerColor,
-                    }}
-                >
-                    {winnerName} Wins!
-                </h1>
-                <ul id="player-list">
-                    {this.props.scores.map(({ playerName, food, playerNumber }) => (
-                        <li
-                            className={'player player-' + playerNumber}
+                {this.state.isConnected || (
+                    <h1 style={{ fontSize: 32, fontFamily, color: 'red' }}> Loading...</h1>
+                )}
+                {this.state.isConnected && (
+                    <>
+                        <h1
                             style={{
-                                color: playerColors[playerNumber - 1],
-                                paddingBottom: '15',
+                                fontSize: 32,
+                                fontFamily,
+                                color: winnerColor,
                             }}
-                            key={playerNumber}
                         >
-                            {playerName}: {food}
-                        </li>
-                    ))}
-                </ul>
+                            {winnerName} Wins!
+                        </h1>
+                        <ul id="player-list">
+                            {scores.map(({ playerName, food, playerNumber }) => (
+                                <li
+                                    className={'player player-' + playerNumber}
+                                    style={{
+                                        color: playerColors[playerNumber - 1],
+                                        paddingBottom: '15',
+                                    }}
+                                    key={playerNumber}
+                                >
+                                    {playerName}: {food}
+                                </li>
+                            ))}
+                        </ul>
+                    </>
+                )}
             </div>
         )
     }
@@ -357,7 +371,7 @@ class StartScreen extends React.Component<RouteComponentProps & { isConnected: b
 }
 
 class GameScreen extends React.Component<
-    RouteComponentProps<{ partyId: string }> & { clientState: ReactState }
+    RouteComponentProps<{ partyId: string }> & { isConnected: boolean }
 > {
     // ctx: CanvasRenderingContext2D
     canvas: HTMLCanvasElement
@@ -370,7 +384,7 @@ class GameScreen extends React.Component<
             this._animationCb = requestAnimationFrame(this.gameLoop)
         }
         // TODO: defer these to the first real draw after server connection
-        if (this.props.clientState.isConnected) {
+        if (this.props.isConnected) {
             sounds.play.currentTime = 0
             sounds.play.play()
         }
@@ -470,16 +484,16 @@ class About extends React.Component {
     }
 }
 
-type UpgradesMenuProps = {
-    secondsLeft: number
-    goo: number
-    speed: number
-    carryLimit: number
-    food: number
-}
-class UpgradesMenu extends React.Component<RouteComponentProps & UpgradesMenuProps> {
+class UpgradesMenu extends React.Component<RouteComponentProps> {
     render() {
-        const data = this.props
+        const player = gameState.getParty().game.players[getId()]
+        const data = {
+            secondsLeft: gameState.getParty().game.roundTimeLeft,
+            goo: player.powerups.goo,
+            speed: player.powerups.speed,
+            carryLimit: player.powerups.carryLimit,
+            food: player.food,
+        }
 
         return (
             <div
@@ -543,7 +557,12 @@ class UpgradesMenu extends React.Component<RouteComponentProps & UpgradesMenuPro
                                             if (!canSell) {
                                                 return
                                             }
-                                            sendTCP(selectUpgrade(name as 'Sticky Goo', -1))
+                                            sendTCP(selectUpgrade(name as any, -1)).then(
+                                                async () => {
+                                                    await sleep(50)
+                                                    this.setState({})
+                                                },
+                                            )
                                         }}
                                     >
                                         -
@@ -554,7 +573,12 @@ class UpgradesMenu extends React.Component<RouteComponentProps & UpgradesMenuPro
                                             if (!canBuy) {
                                                 return
                                             }
-                                            sendTCP(selectUpgrade(name as 'Sticky Goo', 1))
+                                            sendTCP(selectUpgrade(name as any, 1)).then(
+                                                async () => {
+                                                    await sleep(50)
+                                                    this.setState({})
+                                                },
+                                            )
                                         }}
                                     >
                                         +
@@ -593,4 +617,20 @@ class HowToPlay extends React.Component {
 window.onload = function init() {
     initializeRTC().catch(err => console.error(err))
     ReactDOM.render(<App />, document.getElementById('app'))
+}
+
+export function navigateForGameStatus(status: PartyStatus, partyId: string): void {
+    if (status === 'NOT_STARTED') {
+        navigate(`/`)
+    } else if (status === 'LOBBY') {
+        navigate(`/party/${partyId}`)
+    } else if (status === 'UPGRADES') {
+        navigate(`/upgrades/${partyId}`)
+    } else if (status === 'PLAYING') {
+        navigate(`/game/${partyId}`)
+    } else if (status === 'TEST') {
+        navigate(`/test/${partyId}`)
+    } else if (status === 'FINISHED') {
+        navigate(`/finished/${partyId}`)
+    }
 }

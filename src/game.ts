@@ -3,13 +3,12 @@
  * This includes: canvas details, event handlers, and rendering.
  */
 import { PlayerInput, stepPlayer, GamePlayer } from '../server/game'
-import { ReactState } from '../src/index'
+import { navigateForGameStatus } from '../src/index'
 import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState, PartyStatus } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
 import { stats } from './stats'
-import { navigate } from '@reach/router'
 
 const pressedKeys = new Set()
 window.addEventListener('keydown', event => pressedKeys.add(event.code))
@@ -216,19 +215,3 @@ export class GameState {
 
 export const state = new GameState()
 ;(window as any).gamestate = state
-
-function navigateForGameStatus(status: PartyStatus, partyId: string): void {
-    if (status === 'NOT_STARTED') {
-        navigate(`/`)
-    } else if (status === 'LOBBY') {
-        navigate(`/party/${partyId}`)
-    } else if (status === 'UPGRADES') {
-        navigate(`/upgrades/${partyId}`)
-    } else if (status === 'PLAYING') {
-        navigate(`/game/${partyId}`)
-    } else if (status === 'TEST') {
-        navigate(`/test/${partyId}`)
-    } else if (status === 'FINISHED') {
-        navigate(`/finished/${partyId}`)
-    }
-}

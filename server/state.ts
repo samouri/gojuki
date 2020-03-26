@@ -8,7 +8,6 @@ import {
     powerups,
     getDefaultGame,
 } from './game'
-const maxPartySize = 3
 let serverTick = 0
 
 /* Messages & message creators */
@@ -94,6 +93,7 @@ export type PartyListing = {
     id: string
     name: string
     players: Array<Player>
+    status: PartyStatus
 }
 
 export type PartyState = {
@@ -145,11 +145,15 @@ export function handleMessage(message: Message, peerId: string) {
 }
 
 function handleListParties(message: LIST_PARTIES_MESSAGE, peerId: string): Array<PartyListing> {
-    const parties = Object.values(state.parties).filter(p => p.status === 'LOBBY')
+    const isInParty = (party: PartyState) => !!party.players.find(p => p.peerId === peerId)
+    const parties = Object.values(state.parties).filter(
+        p => p.status === 'LOBBY' || (p.status !== 'FINISHED' && isInParty(p)),
+    )
     const listings = parties.map(party => ({
         name: party.name,
         players: party.players,
         id: party.id,
+        status: party.status,
     }))
     return listings
 }
