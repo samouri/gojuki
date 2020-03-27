@@ -12,7 +12,7 @@ type images = {
     goo: HTMLImageElement
 }
 
-export const images: images = mapValues(imgUrls, src => {
+export const images: images = mapValues(imgUrls, (src) => {
     if (typeof src === 'object') {
         return Object.values(src).map(getImg)
     }
@@ -35,7 +35,7 @@ type sounds = {
 
 export const sounds: sounds = mapValues(
     { ...soundsMp3Urls, ...soundsWavUrls },
-    src => new Audio(src),
+    (src) => new Audio(src),
 ) as sounds
 
 const effectsHistory = {

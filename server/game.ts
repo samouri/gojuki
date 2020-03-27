@@ -3,7 +3,7 @@
  * This means only the model (state).
  */
 import * as _ from 'lodash'
-import { PartyState, Player } from './state'
+import { PartyState, Player, Powerup } from './state'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -211,13 +211,12 @@ export function stepWorld(party: PartyState, serverTick: number) {
         // ROUND 3 alert
         if (party.status === 'UPGRADES') {
             // reset positions
-            party.game.players = _.mapValues(party.game.players, player => ({
+            party.game.players = _.mapValues(party.game.players, (player) => ({
                 ...getDefaultPosition(player.playerNumber),
                 ...player,
             }))
 
             party.status = 'PLAYING'
-            party.serverTick = serverTick
             world.roundStartTime = Date.now()
             party.game.round++
         } else if (party.status === 'PLAYING') {
@@ -226,7 +225,6 @@ export function stepWorld(party: PartyState, serverTick: number) {
                 return
             }
             party.status = 'UPGRADES'
-            party.serverTick = serverTick
             world.roundStartTime = Date.now()
         }
     }
@@ -293,7 +291,7 @@ function isSticky(player: GamePlayer): boolean {
 }
 
 function runIntoGoo(world: World, player: GamePlayer) {
-    world.goo = world.goo.filter(goo => {
+    world.goo = world.goo.filter((goo) => {
         if (isTouching(goo, player) && goo.playerNum !== player.playerNumber) {
             player.timings.lastGooHit = Date.now()
             return false
@@ -313,7 +311,7 @@ function depositFood(world: World, player: GamePlayer) {
 
 /* O(n^2): may need to improve this since it runs on each frame. */
 function eatFood(world: World, player: GamePlayer) {
-    world.food = world.food.filter(food => {
+    world.food = world.food.filter((food) => {
         if (isTouching(food, player)) {
             if (player.carriedFood < player.powerups.carryLimit + 5) {
                 player.carriedFood += 1
@@ -343,7 +341,7 @@ function isTouching(rect1: Rectangle, rect2: Rectangle): boolean {
 }
 
 export const powerups: {
-    [name: string]: {
+    [name in Powerup]: {
         cost: number
         description: string
         shortName: 'goo' | 'speed' | 'carryLimit'

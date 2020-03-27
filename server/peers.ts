@@ -11,14 +11,9 @@ export function signalPeer(sessionId: string, signalData: string) {
     peers.get(sessionId).signal(signalData)
 }
 
-export async function registerPeer(
-    sessionId: string,
-    messageHandler: Function,
-): Promise<string> {
+export async function registerPeer(sessionId: string, messageHandler: Function): Promise<string> {
     if (peers.has(sessionId)) {
-        console.log(
-            `peer ${sessionId} already had a cxn, so lets scrap it / recreate it`,
-        )
+        console.log(`peer ${sessionId} already had a cxn, so lets scrap it / recreate it`)
         peers.get(sessionId).destroy()
         peers.delete(sessionId)
     }
@@ -33,13 +28,13 @@ export async function registerPeer(
         },
     })
     peers.set(sessionId, peer)
-    peer.on('data', async data => {
+    peer.on('data', async (data) => {
         messageHandler(JSON.parse(data), sessionId)
     })
     return new Promise((resolve, reject) => {
         peer.on('signal', resolve)
 
-        peer.on('error', err => {
+        peer.on('error', (err) => {
             console.error('error in registration: ', err)
             peers.delete(sessionId)
             reject(err)
@@ -57,11 +52,7 @@ export async function registerPeer(
 
 export function getClients(): Map<string, Client> {
     deleteDisconnectedPeers()
-    return new Map(
-        Array.from(peers.entries()).filter(([id_, peer]) =>
-            isConnectedPeer(peer),
-        ),
-    )
+    return new Map(Array.from(peers.entries()).filter(([id_, peer]) => isConnectedPeer(peer)))
 }
 
 // ----------------------------------------------------------------------
@@ -87,7 +78,7 @@ export async function jitter(n: number) {
 }
 
 async function sleep(n: number) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
         setTimeout(resolve, n)
     })
 }

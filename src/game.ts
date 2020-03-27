@@ -3,16 +3,15 @@
  * This includes: canvas details, event handlers, and rendering.
  */
 import { PlayerInput, stepPlayer, GamePlayer } from '../server/game'
-import { ReactState } from '../src/index'
-import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState } from '../server/state'
+import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState, PartyStatus } from '../server/state'
 import * as _ from 'lodash'
 import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
 import { stats } from './stats'
 
 const pressedKeys = new Set()
-window.addEventListener('keydown', event => pressedKeys.add(event.code))
-window.addEventListener('keyup', event => pressedKeys.delete(event.code))
+window.addEventListener('keydown', (event) => pressedKeys.add(event.code))
+window.addEventListener('keyup', (event) => pressedKeys.delete(event.code))
 export function getPressedKeys(): PlayerInput {
     return {
         left: pressedKeys.has('ArrowLeft'),
@@ -20,76 +19,6 @@ export function getPressedKeys(): PlayerInput {
         up: pressedKeys.has('ArrowUp'),
         space: pressedKeys.has('Space'),
     }
-}
-
-export function handleServerTick(message: SERVER_TICK_MESSAGE) {
-    if (!message) {
-        throw new Error('no message!!')
-    }
-    state.handleServerMessage(message)
-
-    /* Update global ticks*/
-    const uiState = getUIState(message)
-    if (uiState) {
-        window.appSetState(uiState)
-    }
-}
-
-export const initialUIState: ReactState = {
-    serverConnected: false,
-    players: [],
-    gameStatus: 'NOT_STARTED',
-    upgradesScreen: {
-        goo: 0,
-        food: 0,
-        speed: 0,
-        carryLimit: 0,
-        secondsLeft: 60,
-    },
-    scores: [],
-    partyId: undefined,
-}
-
-let cacheUIState: ReactState = { ...initialUIState }
-function getUIState(message: SERVER_TICK_MESSAGE): ReactState {
-    const party: PartyState = message.party
-    // TODO: Create separate idea for "can send messages", and "initialized data?". Aka fix issue for signing in username and multiple prompts
-    if (!party && cacheUIState.serverConnected) {
-        return cacheUIState
-    }
-
-    const thisPlayer = party?.game?.players[getId()]
-    const scores = Object.entries(party?.game?.players ?? {})
-        .sort((x, y) => y[1].food - x[1].food)
-        .map(([_peerId, player]) => {
-            return {
-                playerName: player.playerName,
-                food: player.food,
-                playerNumber: player.playerNumber,
-            }
-        })
-
-    const newUIState = {
-        serverConnected: true,
-        players: party?.players ?? [],
-        gameStatus: party?.status,
-        upgradesScreen: {
-            goo: thisPlayer?.powerups.goo,
-            food: thisPlayer?.food,
-            speed: thisPlayer?.powerups.speed,
-            carryLimit: thisPlayer?.powerups.carryLimit,
-            secondsLeft: party?.game?.roundTimeLeft,
-        },
-        scores,
-        partyId: party?.partyId,
-    }
-
-    if (!_.isEqual(cacheUIState, newUIState)) {
-        cacheUIState = newUIState
-        return cacheUIState
-    }
-
-    return null // TODO: should i be returning null? why not cacheUIState.
 }
 
 export function getClientTick(): CLIENT_TICK_MESSAGE {
@@ -101,7 +30,11 @@ export function getClientTick(): CLIENT_TICK_MESSAGE {
 }
 
 // step the game forward once every 16ms. note that this is not necessarilly in sync with the animation frames.
-setCorrectingInterval(() => state.handleInput(getPressedKeys()), 16)
+setCorrectingInterval(() => {
+    if (isConnected() && window.location.pathname.includes('game')) {
+        state.handleInput(getPressedKeys())
+    }
+}, 16)
 
 // send inputs (only when necessary) at half the rate of client side updates.
 setCorrectingInterval(() => {
@@ -176,7 +109,6 @@ export class GameState {
         if (message.serverTick < this.serverTick) {
             return
         }
-
         stats.nextAck({
             ackedTickId: message.clientTick,
             serverTick: message.serverTick,
@@ -209,7 +141,8 @@ export class GameState {
         }
 
         const shouldRegisterKeypress =
-            this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
+            (window.location.pathname.includes('game') && this.getParty()?.status === 'PLAYING') ||
+            this.getParty()?.status === 'TEST'
         if (this.optimizations.prediction && shouldRegisterKeypress && this.inputs.length > 0) {
             // reconcile client side predicted future w/ actual server state.
             // TODO: figure out why reconcilation isn't perfect
@@ -217,7 +150,7 @@ export class GameState {
             stepPlayer(
                 this.clientState.game,
                 this.getPlayerId_(),
-                this.inputs.map(x => x[1]),
+                this.inputs.map((x) => x[1]),
             )
         }
 

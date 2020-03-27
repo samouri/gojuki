@@ -7,7 +7,7 @@ let nextId = 0
 const intervals: Set<number> = new Set()
 
 export async function sleep(ms: number) {
-    return new Promise(res => setTimeout(res, ms))
+    return new Promise((res) => setTimeout(res, ms))
 }
 
 export function setCorrectingInterval(fn: Function, waitMs: number): number {
