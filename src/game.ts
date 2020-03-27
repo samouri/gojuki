@@ -105,7 +105,6 @@ export class GameState {
         if (message.serverTick < this.serverTick) {
             return
         }
-        const oldState = this.serverState
         stats.nextAck({
             ackedTickId: message.clientTick,
             serverTick: message.serverTick,
