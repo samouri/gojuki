@@ -218,8 +218,8 @@ function PartyScreen({ partyId }: RouteComponentProps<{ partyId: string }>) {
 }
 
 function GameOverScreen(props: RouteComponentProps) {
-    const players = gameState.getParty()?.game?.players ?? {}
-    const scores = Object.entries(players)
+    const players = usePartySync(1000)?.game?.players
+    const scores = Object.entries(players ?? {})
         .sort((x, y) => y[1].food - x[1].food)
         .map(([_id, player]) => {
             return {
@@ -232,7 +232,7 @@ function GameOverScreen(props: RouteComponentProps) {
     const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
     const winnerColor = playerColors[scores?.[0]?.playerNumber - 1]
     const winnerName = scores?.[0]?.playerName
-    const isConnected = useConnected()
+    const isConnected = !!players
 
     return (
         <div
@@ -315,23 +315,20 @@ function GameScreen(props: RouteComponentProps<{ partyId: string }>) {
     const canvasRef = useRef<HTMLCanvasElement>()
 
     function gameStep() {
-        let world = gameState.getParty()?.game
-        if (world) {
-            stats.nextFrame()
-
-            // render
-            let ctx = canvasRef.current.getContext('2d')
-            drawWorld(ctx, world)
-            playEffects(world.players[api.getId()])
-        }
-
         // DOM Hack for checking if this component is mounted
         if (canvasRef.current.isConnected) {
             requestAnimationFrame(gameStep)
         }
+        if (!gameState.getParty()?.game) {
+            return
+        }
+
+        stats.nextFrame()
+        let world = gameState.getParty().game
+        drawWorld(canvasRef.current.getContext('2d'), world)
+        playEffects(world.players[api.getId()])
     }
     useEffect(() => {
-        // TODO: defer these to the first real draw after server connection
         if (isConnected) {
             sounds.play.currentTime = 0
             sounds.play.play()

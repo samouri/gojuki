@@ -30,7 +30,11 @@ export function getClientTick(): CLIENT_TICK_MESSAGE {
 }
 
 // step the game forward once every 16ms. note that this is not necessarilly in sync with the animation frames.
-setCorrectingInterval(() => state.handleInput(getPressedKeys()), 16)
+setCorrectingInterval(() => {
+    if (isConnected() && window.location.pathname.includes('game')) {
+        state.handleInput(getPressedKeys())
+    }
+}, 16)
 
 // send inputs (only when necessary) at half the rate of client side updates.
 setCorrectingInterval(() => {
@@ -137,7 +141,8 @@ export class GameState {
         }
 
         const shouldRegisterKeypress =
-            this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
+            (window.location.pathname.includes('game') && this.getParty()?.status === 'PLAYING') ||
+            this.getParty()?.status === 'TEST'
         if (this.optimizations.prediction && shouldRegisterKeypress && this.inputs.length > 0) {
             // reconcile client side predicted future w/ actual server state.
             // TODO: figure out why reconcilation isn't perfect
