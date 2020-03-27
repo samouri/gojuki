@@ -3,7 +3,7 @@
  * This means only the model (state).
  */
 import * as _ from 'lodash'
-import { PartyState, Player } from './state'
+import { PartyState, Player, Powerup } from './state'
 
 const GAME_DIMENSIONS = Object.freeze({ width: 769, height: 480 })
 export function getGameDimensions() {
@@ -341,7 +341,7 @@ function isTouching(rect1: Rectangle, rect2: Rectangle): boolean {
 }
 
 export const powerups: {
-    [name: string]: {
+    [name in Powerup]: {
         cost: number
         description: string
         shortName: 'goo' | 'speed' | 'carryLimit'

@@ -55,29 +55,13 @@ export type Message =
     | START_GAME_MESSAGE
     | SET_PARTY_MESSAGE
 
-type Powerup = 'Sticky Goo' | 'Speed' | 'Food Carry Limit'
+export type Powerup = 'Sticky Goo' | 'Speed' | 'Food Carry Limit'
 export function selectUpgrade(powerup: Powerup, delta: 1 | -1): PLAYER_UPGRADE_MESSAGE {
     return {
         type: 'PLAYER_UPGRADES',
         powerup,
         delta,
     }
-}
-
-export function listParties(): LIST_PARTIES_MESSAGE {
-    return { type: 'LIST_PARTIES' }
-}
-export function createParty(name: string): CREATE_PARTY_MESSAGE {
-    return { type: 'CREATE_PARTY', name }
-}
-export function joinParty(partyId: string, playerName: string, test?: boolean): JOIN_PARTY_MESSAGE {
-    return { type: 'JOIN_PARTY', playerName, partyId, test }
-}
-export function setParty(id: string): SET_PARTY_MESSAGE {
-    return { type: 'SET_PARTY', id }
-}
-export function startGame(partyId: string): START_GAME_MESSAGE {
-    return { type: 'START_GAME', partyId }
 }
 
 /* State Types*/
@@ -144,7 +128,10 @@ export function handleMessage(message: Message, peerId: string) {
     }
 }
 
-function handleListParties(message: LIST_PARTIES_MESSAGE, peerId: string): Array<PartyListing> {
+export function handleListParties(
+    message: LIST_PARTIES_MESSAGE,
+    peerId: string,
+): Array<PartyListing> {
     const isInParty = (party: PartyState) => !!party.players.find((p) => p.peerId === peerId)
     const parties = Object.values(state.parties).filter(
         (p) => p.status === 'LOBBY' || (p.status !== 'FINISHED' && isInParty(p)),
@@ -158,7 +145,7 @@ function handleListParties(message: LIST_PARTIES_MESSAGE, peerId: string): Array
     return listings
 }
 
-function handleCreateParty(message: CREATE_PARTY_MESSAGE, peerId: string): PartyState {
+export function handleCreateParty(message: CREATE_PARTY_MESSAGE, peerId: string): PartyState {
     let id = nextParty++
     state.parties[id] = {
         id: String(id),
@@ -170,11 +157,11 @@ function handleCreateParty(message: CREATE_PARTY_MESSAGE, peerId: string): Party
     return state.parties[id]
 }
 
-function handleSetParty(message: SET_PARTY_MESSAGE, peerId: string): void {
+export function handleSetParty(message: SET_PARTY_MESSAGE, peerId: string): void {
     partyIndex[peerId] = message.id
 }
 
-function handleJoinParty(
+export function handleJoinParty(
     message: JOIN_PARTY_MESSAGE,
     peerId: string,
 ): { partyId: string } | { err: string } {
@@ -183,12 +170,16 @@ function handleJoinParty(
     if (party && party.players.length >= 4) {
         return { err: 'Sorry, this party is full' }
     }
+    if (party.players.some((p) => p.peerId === peerId)) {
+        return { err: 'You are already in the party, doofus' }
+    }
 
     party.players.push({ peerId, playerName: message.playerName })
     partyIndex[peerId] = partyId
 
     if (message.test) {
-        handleStartGame(startGame(partyId))
+        const startGameMessage: START_GAME_MESSAGE = { type: 'START_GAME', partyId }
+        handleStartGame(startGameMessage)
         state.parties[partyId].status = 'TEST'
     }
 
@@ -255,7 +246,7 @@ function handleClientTick(message: CLIENT_TICK_MESSAGE, peerId: string) {
     }
 }
 
-function handlePlayerUpgrades(message: PLAYER_UPGRADE_MESSAGE, peerId: string) {
+export function handlePlayerUpgrades(message: PLAYER_UPGRADE_MESSAGE, peerId: string) {
     const partyId = getPartyId(peerId)
     const player = state.parties[partyId].game.players[peerId]
     const { cost, shortName } = powerups[message.powerup]
