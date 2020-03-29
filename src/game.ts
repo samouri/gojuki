@@ -4,7 +4,7 @@
  */
 import { PlayerInput, stepPlayer, GamePlayer } from '../server/game'
 import { CLIENT_TICK_MESSAGE, SERVER_TICK_MESSAGE, PartyState, PartyStatus } from '../server/state'
-import * as _ from 'lodash'
+import { cloneDeep } from 'lodash'
 import { sendRTC, getId, isConnected } from './api'
 import { setCorrectingInterval } from './timer'
 import { stats } from './stats'
@@ -48,19 +48,17 @@ setCorrectingInterval(() => {
     }
 }, 32)
 
-const clientHistory: { [id: number]: GamePlayer } = {}
-
 export class GameState {
     inputs: Array<[number, PlayerInput]> = [] // [TickId, PlayerInput]
     clientTick = -1
     serverTick = -1
     ackedClientTick = -1
+    lastServerReceive = -1
 
-    clientState: PartyState = null
-    serverState: PartyState = null
+    serverStates: Array<PartyState> = []
 
     optimizations = {
-        interpolation: false,
+        interpolation: true,
         prediction: true,
     }
 
@@ -77,28 +75,52 @@ export class GameState {
     }
 
     getParty() {
-        return this.optimizations.prediction ? this.clientState : this.serverState
+        return this.serverStates?.[1]
     }
 
     handleInput(input: PlayerInput) {
         const shouldRegisterKeypress =
-            this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
+            this.serverStates?.[0]?.status === 'PLAYING' ||
+            this.serverStates?.[0]?.status === 'TEST'
         if (!shouldRegisterKeypress) {
             return
         }
 
         this.clientTick++
         this.inputs.push([this.clientTick, input])
-        while (this.inputs.length > 5) {
-            console.error('THIS SHOULDNT BE HAPPENING')
-            this.inputs.shift()
+        // while (this.inputs.length > 10) {
+        //     console.error(`We've accumulated more than ${10} unacked inputs`)
+        //     this.inputs.shift()
+        // }
+    }
+
+    getRenderedGame() {
+        if (
+            (!this.optimizations.interpolation && !this.optimizations.prediction) ||
+            !this.serverStates[1]?.game?.players
+        ) {
+            return this.serverStates[0]
+        }
+
+        let rendered = this.serverStates[1]
+        if (this.optimizations.interpolation) {
+            let t = (Date.now() - this.lastServerReceive) / 50 // should be sending 1 frame per 50ms.
+            t = Math.min(t, 1)
+            rendered = interpolate(this.serverStates[0], this.serverStates[1], t)
         }
 
         if (this.optimizations.prediction) {
-            // this modifies it in-place
-            stepPlayer(this.clientState.game, this.getPlayerId_(), [input])
-            clientHistory[this.clientTick] = this.clientState.game.players[this.getPlayerId_()]
+            let me = this.serverStates[1].game.players[getId()]
+            rendered.game.players[getId()] = cloneDeep(me)
+
+            stepPlayer(
+                rendered.game,
+                getId(),
+                this.inputs.map((x) => x[1]),
+            )
         }
+
+        return rendered
     }
 
     getPlayerId_() {
@@ -109,27 +131,14 @@ export class GameState {
         if (message.serverTick < this.serverTick) {
             return
         }
+        this.lastServerReceive = Date.now()
         stats.nextAck({
             ackedTickId: message.clientTick,
             serverTick: message.serverTick,
             delay: message.delay,
         })
         this.serverTick = message.serverTick
-        this.serverState = message.party
-        this.clientState = _.cloneDeep(this.serverState)
-
-        const actual = this.serverState?.game?.players[this.getPlayerId_()]
-        const predicted = clientHistory[message.clientTick]
-        delete clientHistory[message.clientTick]
-        if (
-            predicted &&
-            actual &&
-            !_.isEqual({ x: predicted.x, y: predicted.y }, { x: actual.x, y: actual.y })
-        ) {
-            console.error(
-                `Incorrect prediction at tick ${message.clientTick}, predicted: {${predicted.x}, ${predicted.y}}, was actually: {${actual.x}, ${actual.y}}`,
-            )
-        }
+        this.serverStates = [this.serverStates[1] ?? message.party, message.party]
 
         this.ackedClientTick = message.clientTick
         this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
@@ -139,27 +148,39 @@ export class GameState {
             console.warn('Catching up clientTick to ackedClientTick')
             this.clientTick = this.ackedClientTick + 1
         }
-
-        const shouldRegisterKeypress =
-            (window.location.pathname.includes('game') && this.getParty()?.status === 'PLAYING') ||
-            this.getParty()?.status === 'TEST'
-        if (this.optimizations.prediction && shouldRegisterKeypress && this.inputs.length > 0) {
-            // reconcile client side predicted future w/ actual server state.
-            // TODO: figure out why reconcilation isn't perfect
-            // given the redundant packets and 0 lost inputs.
-            stepPlayer(
-                this.clientState.game,
-                this.getPlayerId_(),
-                this.inputs.map((x) => x[1]),
-            )
-        }
-
-        if (this.optimizations.interpolation) {
-            // TODO: implement interpolation. this means holding a buffer of
-            // size 1 or 2 for enemy states, and tweening them to their next position.
-            // buffer should help smooth out the visual effects of jitter.
-        }
     }
+}
+
+function interpolate(state1: PartyState, state2: PartyState, t: number): PartyState {
+    const players1 = state1?.game?.players
+    const players2 = state2?.game?.players
+    if (!players1 || !players2) {
+        return state1
+    }
+
+    const lerpedPlayers = Object.entries(players1).map(([id, p1]) => {
+        const p2 = players2[id]
+        return [
+            id,
+            {
+                ...p1,
+                x: lerp(p1.x, p2.x, t),
+                y: lerp(p1.y, p2.y, t),
+                rotation: lerp(p1.rotation, p2.rotation, t),
+            },
+        ]
+    })
+    return {
+        ...state2,
+        game: {
+            ...state2.game,
+            players: Object.fromEntries(lerpedPlayers),
+        },
+    }
+}
+
+function lerp(start: number, end: number, t: number) {
+    return start * (1 - t) + end * t
 }
 
 export const state = new GameState()

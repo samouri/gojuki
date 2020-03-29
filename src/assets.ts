@@ -17,7 +17,7 @@ export const images: images = mapValues(imgUrls, (src) => {
         return Object.values(src).map(getImg)
     }
     return getImg(src)
-})
+}) as images
 
 function getImg(src: string) {
     const img = new Image()

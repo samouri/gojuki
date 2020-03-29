@@ -31,7 +31,11 @@ function sendTCP(json: object): Promise<any> {
         headers: {
             'Content-Type': 'application/json',
         },
-    }).then((res) => res.json())
+    })
+        .then((res) => res.json())
+        .catch((err) => {
+            console.error(err)
+        })
 }
 
 export function sendRTC(json: object) {
@@ -78,8 +82,9 @@ export async function initializeRTC() {
     })
 
     peer.on('data', function (data: string) {
-        state.handleServerMessage(JSON.parse(data) as SERVER_TICK_MESSAGE)
-        navigateForParty(state.getParty())
+        const msg = JSON.parse(data) as SERVER_TICK_MESSAGE
+        state.handleServerMessage(msg)
+        navigateForParty(msg.party)
     })
 
     // get this show on the road

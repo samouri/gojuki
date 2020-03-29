@@ -266,7 +266,6 @@ export function stepPlayer(world: World, playerId: string, inputs: Array<PlayerI
         depositFood(world, p)
 
         runIntoGoo(world, p)
-        // depositGoo(world, p)
         if (input.space && p.powerups.goo > 0 && outOfCooldown(p)) {
             world.goo.push({
                 playerNum: p.playerNumber,

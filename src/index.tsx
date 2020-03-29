@@ -135,8 +135,7 @@ function PartySelectionScreen(props: RouteComponentProps) {
 function PartyScreen({ partyId }: RouteComponentProps<{ partyId: string }>) {
     const [loading, setLoading] = useState(true)
     const party = usePartySync(100)
-    const players = party?.players ?? []
-    if (players && loading) {
+    if (party?.players && loading) {
         setLoading(false)
     }
     if (
@@ -151,6 +150,7 @@ function PartyScreen({ partyId }: RouteComponentProps<{ partyId: string }>) {
         api.setParty(partyId)
     }, [])
 
+    const players = party?.players ?? []
     const playerColors = ['#E93F3F', '#3FE992', '#3FD3E9', '#E93FDB']
     const maxPlayers = 4
     const waitingFor = maxPlayers - players.length
@@ -324,7 +324,7 @@ function GameScreen(props: RouteComponentProps<{ partyId: string }>) {
         }
 
         stats.nextFrame()
-        let world = gameState.getParty().game
+        let world = gameState.getRenderedGame().game
         drawWorld(canvasRef.current.getContext('2d'), world)
         playEffects(world.players[api.getId()])
     }
