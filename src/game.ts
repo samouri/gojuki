@@ -88,10 +88,10 @@ export class GameState {
 
         this.clientTick++
         this.inputs.push([this.clientTick, input])
-        while (this.inputs.length > 10) {
-            console.error(`We've accumulated more than ${10} unacked inputs`)
-            this.inputs.shift()
-        }
+        // while (this.inputs.length > 10) {
+        //     console.error(`We've accumulated more than ${10} unacked inputs`)
+        //     this.inputs.shift()
+        // }
     }
 
     getRenderedGame() {
@@ -104,7 +104,7 @@ export class GameState {
 
         let rendered = this.serverStates[1]
         if (this.optimizations.interpolation) {
-            let t = (Date.now() - this.lastServerReceive) / 100 // should be sending 1 frame per 33ms.
+            let t = (Date.now() - this.lastServerReceive) / 50 // should be sending 1 frame per 50ms.
             t = Math.min(t, 1)
             rendered = interpolate(this.serverStates[0], this.serverStates[1], t)
         }
