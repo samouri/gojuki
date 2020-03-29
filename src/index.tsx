@@ -324,7 +324,7 @@ function GameScreen(props: RouteComponentProps<{ partyId: string }>) {
         }
 
         stats.nextFrame()
-        let world = gameState.getParty().game
+        let world = gameState.getRenderedGame().game
         drawWorld(canvasRef.current.getContext('2d'), world)
         playEffects(world.players[api.getId()])
     }

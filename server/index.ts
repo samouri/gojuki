@@ -45,7 +45,7 @@ const port = process.env.PORT || 3000
 console.log(`Load up the game at: http://localhost:${port}`)
 app.listen(port)
 
-setCorrectingInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
+setCorrectingInterval(sendGameUpdates, 100) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
     state.stepWorlds()
     for (const [clientId, client] of peers.getClients()) {
