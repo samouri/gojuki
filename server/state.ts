@@ -157,8 +157,9 @@ export function handleCreateParty(message: CREATE_PARTY_MESSAGE, peerId: string)
     return state.parties[id]
 }
 
-export function handleSetParty(message: SET_PARTY_MESSAGE, peerId: string): void {
+export function handleSetParty(message: SET_PARTY_MESSAGE, peerId: string): {} {
     partyIndex[peerId] = message.id
+    return {}
 }
 
 export function handleJoinParty(

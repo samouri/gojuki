@@ -55,12 +55,13 @@ export class GameState {
     clientTick = -1
     serverTick = -1
     ackedClientTick = -1
+    lastServerReceive = -1
 
     clientState: PartyState = null
-    serverState: PartyState = null
+    serverStates: Array<PartyState> = []
 
     optimizations = {
-        interpolation: false,
+        interpolation: true,
         prediction: true,
     }
 
@@ -77,12 +78,20 @@ export class GameState {
     }
 
     getParty() {
-        return this.optimizations.prediction ? this.clientState : this.serverState
+        const isPlaying =
+            this.clientState?.status === 'PLAYING' || this.clientState?.status === 'TEST'
+
+        if (isPlaying && this.optimizations.interpolation) {
+            let t = (Date.now() - this.lastServerReceive) / 33 // should be sending 1 frame per 33ms.
+            t = Math.min(t, 1)
+            return interpolate(this.clientState, this.serverStates[1], t)
+        }
+        return this.clientState
     }
 
     handleInput(input: PlayerInput) {
         const shouldRegisterKeypress =
-            this.getParty()?.status === 'PLAYING' || this.getParty()?.status === 'TEST'
+            this.clientState?.status === 'PLAYING' || this.clientState?.status === 'TEST'
         if (!shouldRegisterKeypress) {
             return
         }
@@ -109,27 +118,39 @@ export class GameState {
         if (message.serverTick < this.serverTick) {
             return
         }
+        this.lastServerReceive = Date.now()
         stats.nextAck({
             ackedTickId: message.clientTick,
             serverTick: message.serverTick,
             delay: message.delay,
         })
         this.serverTick = message.serverTick
-        this.serverState = message.party
-        this.clientState = _.cloneDeep(this.serverState)
-
-        const actual = this.serverState?.game?.players[this.getPlayerId_()]
-        const predicted = clientHistory[message.clientTick]
-        delete clientHistory[message.clientTick]
-        if (
-            predicted &&
-            actual &&
-            !_.isEqual({ x: predicted.x, y: predicted.y }, { x: actual.x, y: actual.y })
-        ) {
-            console.error(
-                `Incorrect prediction at tick ${message.clientTick}, predicted: {${predicted.x}, ${predicted.y}}, was actually: {${actual.x}, ${actual.y}}`,
-            )
+        this.serverStates = [this.serverStates[1] ?? message.party, message.party]
+        if (this.optimizations.interpolation) {
+            this.clientState = _.cloneDeep(this.serverStates[0])
+            const me = this.clientState?.game?.players?.[getId()]
+            if (me && this.serverStates[1]?.game) {
+                this.clientState.game.players[getId()] = this.serverStates[1].game.players[getId()]
+            }
+            if (Math.random() > 9) {
+                console.log(`receiving tick`, this.serverStates)
+            }
+        } else {
+            this.clientState = _.cloneDeep(this.serverStates[1])
         }
+
+        // const actual = this.serverState?.game?.players[this.getPlayerId_()]
+        // const predicted = clientHistory[message.clientTick]
+        // delete clientHistory[message.clientTick]
+        // if (
+        //     predicted &&
+        //     actual &&
+        //     !_.isEqual({ x: predicted.x, y: predicted.y }, { x: actual.x, y: actual.y })
+        // ) {
+        //     console.error(
+        //         `Incorrect prediction at tick ${message.clientTick}, predicted: {${predicted.x}, ${predicted.y}}, was actually: {${actual.x}, ${actual.y}}`,
+        //     )
+        // }
 
         this.ackedClientTick = message.clientTick
         this.inputs = this.inputs.filter(([tick, _]) => tick > this.ackedClientTick)
@@ -141,9 +162,9 @@ export class GameState {
         }
 
         const shouldRegisterKeypress =
-            (window.location.pathname.includes('game') && this.getParty()?.status === 'PLAYING') ||
-            this.getParty()?.status === 'TEST'
-        if (this.optimizations.prediction && shouldRegisterKeypress && this.inputs.length > 0) {
+            (window.location.pathname.includes('game') && this.clientState?.status === 'PLAYING') ||
+            this.clientState?.status === 'TEST'
+        if (this.optimizations.prediction && shouldRegisterKeypress) {
             // reconcile client side predicted future w/ actual server state.
             // TODO: figure out why reconcilation isn't perfect
             // given the redundant packets and 0 lost inputs.
@@ -153,13 +174,45 @@ export class GameState {
                 this.inputs.map((x) => x[1]),
             )
         }
-
-        if (this.optimizations.interpolation) {
-            // TODO: implement interpolation. this means holding a buffer of
-            // size 1 or 2 for enemy states, and tweening them to their next position.
-            // buffer should help smooth out the visual effects of jitter.
-        }
     }
+}
+
+function interpolate(state1: PartyState, state2: PartyState, t: number): PartyState {
+    const players1 = state1?.game?.players
+    const players2 = state2?.game?.players
+    if (!players1 || !players2) {
+        return state1
+    }
+
+    const lerpedPlayers = Object.entries(players1)
+        // .filter(([id, _p]) => id !== getId()) // don't interpolate client's player.
+        .map(([id, p1]) => {
+            if (id === getId()) {
+                return [id, players2[id]]
+            }
+            const p2 = players2[id]
+
+            return [
+                id,
+                {
+                    ...p1,
+                    x: lerp(p1.x, p2.x, t),
+                    y: lerp(p1.y, p2.y, t),
+                    rotation: lerp(p1.rotation, p2.rotation, t),
+                },
+            ]
+        })
+    return {
+        ...state1,
+        game: {
+            ...state1.game,
+            players: Object.fromEntries(lerpedPlayers),
+        },
+    }
+}
+
+function lerp(start: number, end: number, t: number) {
+    return start * (1 - t) + end * t
 }
 
 export const state = new GameState()

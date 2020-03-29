@@ -5,6 +5,7 @@ import * as path from 'path'
 import * as peers from './peers'
 import * as state from './state'
 import { handleMessage, Message } from './state'
+import { setCorrectingInterval } from '../src/timer'
 const app = express()
 
 app.use(bodyParser.json())
@@ -44,7 +45,7 @@ const port = process.env.PORT || 3000
 console.log(`Load up the game at: http://localhost:${port}`)
 app.listen(port)
 
-setInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
+setCorrectingInterval(sendGameUpdates, 33) /* send 30 updates/second. 1000/30 = ~33 */
 function sendGameUpdates() {
     state.stepWorlds()
     for (const [clientId, client] of peers.getClients()) {
