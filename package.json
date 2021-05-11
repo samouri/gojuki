@@ -33,7 +33,7 @@
         "body-parser": "^1.18.3",
         "express": "^4.16.4",
         "express-session": "^1.15.6",
-        "lodash": "^4.17.19",
+        "lodash": "^4.17.21",
         "parcel": "^1.12.4",
         "react": "^16.8.6",
         "react-dom": "^16.8.6",
